@@ -241,6 +241,7 @@ class load_kmp(bpy.types.Operator, ImportHelper):
             areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
             areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
             areaScale = (areaXScale, areaZScale, areaYScale)
+            areaName = "AREA" 
             if(str(areaShape) == "0"):
                 bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation, rotation=areaRotation)
                 cube = bpy.context.selected_objects[0]
@@ -251,7 +252,8 @@ class load_kmp(bpy.types.Operator, ImportHelper):
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.transform.resize(value=areaScale, orient_type='LOCAL')      
             if(str(areaShape) == "1"):
-                bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=cursor_position)
+                bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=areaLocation, rotation=areaRotation)
+                
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='SELECT')
                 bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
