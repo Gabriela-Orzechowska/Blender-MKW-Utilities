@@ -261,18 +261,18 @@ class kmp_area (bpy.types.Operator):
             object_position = object.location
             name = object.name
             properties = name.split("_")
-            areaNumber = "%02d" % (int(properties[1],))
-            areaShape = "%02d" % (int(properties[2],))
-            areaType = "%02d" % (int(properties[3],))
-            areaID = "FF" if properties[4] == "-1" else '{:X}'.format(int(float(properties[4])))
-            areaPrority = "%02d" % (int(properties[5],))
-            areaSet1 = '{:X}'.format(int(properties[6]))
-            areaSet2 = '{:X}'.format(int(properties[7]))
+            areaNumber = '0x{0:0{1}X}'.format(int(properties[1]), 2)[2:]
+            areaShape = '0x{0:0{1}X}'.format(int(properties[2]), 2)[2:]
+            areaType = '0x{0:0{1}X}'.format(int(properties[3]), 2)[2:]
+            areaID = "FF" if properties[4] == "-1" else '0x{0:0{1}X}'.format(int(properties[4]), 2)[2:]
+            areaPrority = '0x{0:0{1}X}'.format(int(properties[5]), 2)[2:]
+            areaSet1 = '0x{0:0{1}X}'.format(int(properties[6]), 4)[2:]
+            areaSet2 = '0x{0:0{1}X}'.format(int(properties[7]), 4)[2:]
             areaSet = str(areaSet1) + str(areaSet2)
-            areaRoute = '{:X}'.format(int(properties[8]))
+            areaRoute = '0x{0:0{1}X}'.format(int(properties[8]), 4)[2:]
             if properties[8] == "-1":
                 areaRoute = "FFFF"
-            areaEnemy = format(int(properties[9], 16), '04x')
+            areaEnemy = '0x{0:0{1}X}'.format(int(properties[9]), 4)[2:]
             xpos = round(object_position[0] * scale, 2)
             ypos = round(object_position[2] * scale, 2)
             zpos = round(object_position[1] * scale * -1, 2)
