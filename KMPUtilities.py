@@ -323,8 +323,8 @@ class kmp_c_cube_area (bpy.types.Operator):
         mytool.kmp_areaPrority = int(properties[5])
         mytool.kmp_areaSet1 = properties[6]
         mytool.kmp_areaSet2 = properties[7]
-        mytool.kmp_areaRoute = properties[8]
-        mytool.kmp_areaEnemy = properties[9]
+        mytool.kmp_areaRoute = int(properties[8])
+        mytool.kmp_areaEnemy = int(properties[9])
         mat = bpy.data.materials.get("kmpc.area")
         if mat is None:
           mat = bpy.data.materials.new(name="kmpc.area")
@@ -366,8 +366,8 @@ class kmp_c_cylinder_area (bpy.types.Operator):
         mytool.kmp_areaPrority = int(properties[5])
         mytool.kmp_areaSet1 = properties[6]
         mytool.kmp_areaSet2 = properties[7]
-        mytool.kmp_areaRoute = properties[8]
-        mytool.kmp_areaEnemy = properties[9]
+        mytool.kmp_areaRoute = int(properties[8])
+        mytool.kmp_areaEnemy = int(properties[9])
         mat = bpy.data.materials.get("kmpc.area")
         if mat is None:
           mat = bpy.data.materials.new(name="kmpc.area")
