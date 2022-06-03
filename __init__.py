@@ -1,0 +1,920 @@
+bl_info = {
+    "name" : "KMP Utilities",
+    "author" : "Gabriela_",
+    "version" : (1, 0),
+    "blender" : (2, 82, 0),
+    "location" : "View3d > Tool",
+    "warning" : "",
+    "wiki_url" : "",
+    "category": "Export",
+}
+
+import os
+import bpy
+import math
+import random
+import struct 
+from bpy_extras.io_utils import ImportHelper, ExportHelper
+
+
+lastselection = []
+setting1users = ["A2", "A3", "A6", "A8", "A9"]
+setting2users = ["A3", "A6"]
+   
+def updateArea(self, context):
+    checkMaterial()
+    #0 - AREA Header
+    #1 - Number
+    #2 - Shape
+    #3 - Type
+    #4 - CAME
+    #5 - Priority
+    #6 - Setting 1
+    #7 - Setting 2
+    #8 - Route
+    #9 - Enemy Point
+    
+    global lastselection, setting1users, setting2users
+    scene = context.scene
+    mytool = scene.kmpt
+    activeObject = bpy.context.active_object
+    if(lastselection == activeObject):
+        if(activeObject.name.startswith("AREA_")): 
+            name = activeObject.name
+            properties = name.split("_")
+            ctype = str(mytool.kmp_areaEnumType)
+            #Set properties to correct  values from variables
+            kmp_areaSet1 = "0"
+            kmp_areaSet2 = "0"
+            kmp_areaID = "-1"
+            if(ctype == 'A0'):
+                kmp_areaID = str(mytool.kmp_areaID)
+            kmp_areaRoute = "-1"
+            if(ctype == 'A3'):
+                kmp_areaRoute = str(mytool.kmp_areaRoute)
+            kmp_areaEnemy = "-1"
+            if(ctype == 'A4'):
+                kmp_areaEnemy = str(mytool.kmp_areaEnemy)
+            if(ctype == 'A1'):
+                kmp_areaSet1 = str(int(mytool.kmp_areaEvnKarehaUp))
+            elif(ctype == 'A2'):
+                kmp_areaSet1 = str(mytool.kmp_areaPostEffectEntry) 
+            elif(ctype == 'A3'):
+                kmp_areaSet1 = str(mytool.kmp_areaMovingRouteSet1) 
+                kmp_areaSet2 = str(mytool.kmp_areaMovingRouteSet2) 
+            elif(ctype == 'A6'):
+                kmp_areaSet1 = str(mytool.kmp_areaIDK1) 
+                kmp_areaSet2 = str(mytool.kmp_areaIDK2) 
+            elif(ctype == 'A8' or ctype == 'A9'):
+                kmp_areaSet1 = str(mytool.kmp_areaGroup)
+                                
+            areaName = properties[0] + "_" + properties[1] + "_"  + properties[2] + "_"  + str(mytool.kmp_areaEnumType[1:]) + "_"  + kmp_areaID + "_" +\
+            str(mytool.kmp_areaPrority) + "_"  + kmp_areaSet1 + "_"  + kmp_areaSet2 + "_"  + kmp_areaRoute + "_"  + kmp_areaEnemy
+            bpy.context.active_object.name = areaName
+            mat = bpy.data.materials.get("kmpc.area." + mytool.kmp_areaEnumType)
+            bpy.context.active_object.data.materials.clear()
+            bpy.context.active_object.data.materials.append(mat)
+                   
+class MyProperties(bpy.types.PropertyGroup):
+    
+    #
+    #
+    # AREA
+    #
+    #
+    
+    scale : bpy.props.FloatProperty(name= "Export scale", min= 0.0001, max= 100000, default= 100, description= "Set scale at which your KMP will be exported")
+ #region area_types  
+    #AREA Section
+    kmp_areaEnumType : bpy.props.EnumProperty(name = "Type", items=[("A0", "Camera", 'Defines which camera is being used while entering this AREA'),
+                                                                    ("A1", "EnvEffect", 'Defines an area where EnvFire and EnvSnow is not used, and EnvKareha is used'),
+                                                                    ("A2", "BFG Entry Swapper", 'Controls which posteffect.bfg is being used'),
+                                                                    ("A3", "Moving Road", 'Causes moving road terrain in KCL to move'),
+                                                                    ("A4", "Destination Point", 'This AREA type is used as first destination for Force Recalculation'),
+                                                                    ("A5", "Minimap Control", 'Used to crop minimap on tournaments'),
+                                                                    ("A6", "Music Changer", 'Changes music effects'),
+                                                                    ("A7", "Flying Boos", 'Flying Boos will appear while inside of this AREA (Requires b_teresa)'),
+                                                                    ("A8", "Object Grouper", 'Groups objects together'),
+                                                                    ("A9", "Group Unloader", 'Disables objects of selected group'),
+                                                                    ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')],
+                                                                    update=updateArea)
+    kmp_areaPrority : bpy.props.IntProperty(name = "Priority", min= 0, default= 0, update=updateArea, 
+                                            description= "When 2 AREAs of same type a overlapping then the one\with higher priority is getting considered")                                                                
+    kmp_areaSet1 : bpy.props.StringProperty(name = "Set1", default= "0", update=updateArea)
+    kmp_areaSet2 : bpy.props.StringProperty(name = "Set2", default= "0", update=updateArea)
+    #AREA0
+    kmp_areaID : bpy.props.IntProperty(name = "CAME", min= 0, default= 0, update=updateArea, 
+                                        description= "ID of camera which will be activated while entering AREA (Decimal)")
+    #AREA1
+    kmp_areaEvnKarehaUp : bpy.props.BoolProperty(name= "Use EnvKarehaUp?", update=updateArea, 
+                                                description= "If EnvKareha is being used, selecting this option will use EnvKarehaUp instead")
+    #AREA2
+    kmp_areaPostEffectEntry : bpy.props.IntProperty(name= "BFG Entry", min= 0, default= 0, update=updateArea,
+                                                    description= "ID of posteffect.bfg entry which will be used while inside of the AREA")
+    #AREA3
+    kmp_areaRoute : bpy.props.IntProperty(name= "Route", default= -1, update=updateArea, 
+                                            description= "A Route used by moving road KCL to push player along. Setting this to '-1' will moving road to push players towards this AREA origin point")
+    kmp_areaMovingRouteSet1 : bpy.props.IntProperty(name="Acceleration", soft_min= 0, default = 0, update=updateArea, 
+                                                    description= "Defines acceleration and deceleration speed for Variant 0x0002. The higher value, the easier is to speed up and harder to slow down")
+    kmp_areaMovingRouteSet2 : bpy.props.IntProperty(name="Speed", soft_min= 0, default = 0, update=updateArea, 
+                                                    description= "Defines the speed of moving water")
+    #AREA4
+    kmp_areaEnemy : bpy.props.IntProperty(name = "EN Point", default= -1, update=updateArea, 
+                                        description= "(Unsure) Defines the next enemy point ID (decimal) after entering AREA")
+    #AREA6
+    kmp_areaIDK1 : bpy.props.IntProperty(name = "Unknown Setting 1", min= 0, default= 0, update=updateArea, 
+                                        description= "Unknown. Undocumented. Always 1 on Nintendo tracks")
+    kmp_areaIDK2 : bpy.props.IntProperty(name = "Unknown Setting 2", min= 0, default= 0, update=updateArea, 
+                                        description= "Unknown. Undocumented. (Very unsure) Defines music volume change")
+    #AREA8&9
+    kmp_areaGroup : bpy.props.IntProperty(name = "Group", min= 0, default= 0, update=updateArea,
+                                        description= "Defines the group for AREA type 8 (Object Grouper) and 9 (Group Unloader) to work together")
+#endregion
+ #region kcl_types   
+
+    #
+    #
+    # KCL
+    #
+    #
+    
+    
+    kcl_masterType : bpy.props.EnumProperty(name = "Type", items=[("T00", "Road (0x00)", ''),
+                                                            ("T01", "Slippery Road 1 (0x01)", ''),
+                                                            ("T02", "Weak Off-road (0x02)", ''),
+                                                            ("T03", "Off-road (0x03)", ''),
+                                                            ("T04", "Heavy Off-road (0x04)", ''),
+                                                            ("T05", "Slippery Road 2 (0x05)", ''),
+                                                            ("T06", "Boost Pad (0x06)", ''),
+                                                            ("T07", "Boost Ramp (0x07)", ''),
+                                                            ("T08", "Jump Pad (0x08)", ''),
+                                                            ("T09", "Item Road (0x09)", ''),
+                                                            ("T0A", "Solid Fall (0x0A)", ''),
+                                                            ("T0B", "Moving Water (0x0B)", ''),
+                                                            ("T0C", "Wall (0x0C)", ''),
+                                                            ("T0D", "Invisible Wall (0x0D)", ''),
+                                                            ("T0E", "Item Wall (0x0E)", ''),
+                                                            ("T0F", "Wall 2 (0x0F)", ''),
+                                                            ("T10", "Fall Boundary (0x10)", ''),
+                                                            ("T11", "Cannon Activator (0x11)", ''),
+                                                            ("T12", "Force Recalculation (0x12)", ''),
+                                                            ("T13", "Half-pipe Ramp (0x13)", ''),
+                                                            ("T14", "Wall 3 (0x14)", ''),
+                                                            ("T15", "Moving Road (0x15)", ''),
+                                                            ("T16", "Sticky Road (0x16)", ''),
+                                                            ("T17", "Road 2 (0x17)", ''),
+                                                            ("T18", "Sound Trigger (0x18)", ''),
+                                                            ("T19", "Weak Wall (0x19)", ''),
+                                                            ("T1A", "Effect Trigger (0x1A)", ''),
+                                                            ("T1B", "Item State Modifier (0x1B)", ''),
+                                                            ("T1C", "Half-pipe Invisible Road (0x1C)", ''),
+                                                            ("T1D", "Moving Road 2 (0x1D)", ''),
+                                                            ("T1E", "Special Wall (0x1E)", ''),
+                                                            ("T1F", "Wall 5 (0x1F)", ''),
+                                                            ])
+    kcl_variant : bpy.props.IntProperty(name= "Variant", min=0, max=7, default= 0)
+    kcl_shadow : bpy.props.IntProperty(name= "Shadow", min=0, max=7, default= 0)
+    kcl_trickable : bpy.props.BoolProperty(name= "Trickable", default=False)
+    kcl_drivable : bpy.props.BoolProperty(name= "Drivable", default=True)
+    kcl_bounce : bpy.props.BoolProperty(name= "Bounce", default=True)
+    
+    kclVariantT00 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
+                                                                ("1", "Dirt with GFX (7.3 , 8.3)", ''),
+                                                                ("2", "Dirt without GFX", ''),
+                                                                ("3", "Smooth", ''),
+                                                                ("4", "Wood", ''),
+                                                                ("5", "Snow", ''),
+                                                                ("6", "Metal grate", ''),
+                                                                ("7", "Normal (Sound cuts off)", '')])
+    kclVariantT01 : bpy.props.EnumProperty(name = "Variant", items=[("0", "White sand", ''),
+                                                                ("1", "Dirt", ''),
+                                                                ("2", "Water", ''),
+                                                                ("3", "Snow", ''),
+                                                                ("4", "Grass", ''),
+                                                                ("5", "Yellow sand", ''),
+                                                                ("6", "Sand, no GFX", ''),
+                                                                ("7", "Dirt, no GFX", '')])
+    kclVariantT02 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Orange Sand", ''),
+                                                                ("1", "Dirt", ''),
+                                                                ("2", "Water", ''),
+                                                                ("3", "Grass, darker GFX", ''),
+                                                                ("4", "Grass, lighter GFX", ''),
+                                                                ("5", "Carpet", ''),
+                                                                ("6", "Gravel", ''),
+                                                                ("7", "Gravel, different impact SFX", '')])
+    kclVariantT03 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sand", ''),
+                                                                ("1", "Dirt", ''),
+                                                                ("2", "Mud", ''),
+                                                                ("3", "Water, no GFX", ''),
+                                                                ("4", "Grass", ''),
+                                                                ("5", "Sand, lighter GFX", ''),
+                                                                ("6", "Gravel, different impact SFX", ''),
+                                                                ("7", "Carpet", '')])
+    kclVariantT04 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sand", ''),
+                                                                ("1", "Dirt", ''),
+                                                                ("2", "Mud", ''),
+                                                                ("3", "Flowers", ''),
+                                                                ("4", "Grass", ''),
+                                                                ("5", "Snow", ''),
+                                                                ("6", "Sand", ''),
+                                                                ("7", "Dirt, no GFX", '')])
+    kclVariantT05 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Ice", ''),
+                                                                ("1", "Mud", ''),
+                                                                ("2", "Water", ''),
+                                                                ("6", "Normal road, different sound", '')])
+    kclVariantT06 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Default", ''),
+                                                                ("1", "(Check description)", 'if used in course.kcl and casino_roulette is nearby, the road slowly rotates everything around it counterclockwise. Used in Chain Chomp Wheel.'),
+                                                                ("2", "Unknown", '')])
+    kclVariantT07 : bpy.props.EnumProperty(name = "Variant", items=[("0", "2 flips", ''),
+                                                                ("1", "1 flip", ''),
+                                                                ("2", "No flips", '')]) 
+    kclVariantT08 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Stage 2, used in GBA Bowser Castle 3", ''),
+                                                                ("1", "Stage 3, used in SNES Ghost Valley 2", ''),
+                                                                ("2", "Stage 1, used in GBA Shy Guy Beach", ''),
+                                                                ("3", "Stage 4, used in Mushroom Gorge", ''),
+                                                                ("4", "Stage 5, Bouncy mushroom", ''),
+                                                                ("5", "Stage 4, used in Chain Chomp Wheel", ''),
+                                                                ("6", "Stage 2, used in DS Yoshi Falls and Funky Stadium", ''),
+                                                                ("7", "Stage 4, unused", '')])   
+    kclVariantT09 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Unknown", ''),
+                                                                ("1", "Unknown", ''),
+                                                                ("2", "Used on metal grates", ''),
+                                                                ("3", "Unknown. Used on wooden paths/grass/mushrooms", ''),
+                                                                ("4", "Unknown", ''),
+                                                                ("5", "Unknown. Used on grass/bushes", ''),
+                                                                ("6", "Unknown", '')])   
+    kclVariantT0A : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sand", ''),
+                                                                ("1", "Sand/Underwater", ''),
+                                                                ("2", "Unknown", ''),
+                                                                ("3", "Ice", ''),
+                                                                ("4", "Dirt", ''),
+                                                                ("5", "Grass", ''),
+                                                                ("6", "Wood", ''),
+                                                                ("7", "Unknown", '')])
+    kclVariantT0B : bpy.props.EnumProperty(name = "Variant", items=[("0", "Moving water that follows a route, pulling the player downwards.", 'Route settings:\n1 = speed\n2 = unknown'),
+                                                                ("1", "Moving water that follows a route and strongly pulls the player downwards, making it hard to drive.", 'Route settings:\n1 = speed\n2 = unknown'),
+                                                                ("2", "Moving water that follows a route from the start of the path to the end of it.", 'Route settings:\n1 = unknown\n2 = with value 1, the moving water direction rotates 90 degrees.\nIt also uses two settings in the AREA:\nAt 0x28 = acceleration/deceleration modifier\nAt 0x2A = route speed (speed at which the route pulls the player)\n (Supported by AREA plugin)'),
+                                                                ("3", "Moving water with no route.", 'It pulls you down and you cannot move from it'),
+                                                                ("4", "Moving asphalt", 'Route settings:\n1 = speed\n2 = unknown'),
+                                                                ("6", "Moving road", 'Route settings:\n1 = speed\n2 = unknown')])
+    kclVariantT0C : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
+                                                                ("1", "Rock", ''),
+                                                                ("2", "Metal", ''),
+                                                                ("3", "Wood", ''),
+                                                                ("4", "Ice", ''),
+                                                                ("5", "Bush", ''),
+                                                                ("6", "Rope", ''),
+                                                                ("7", "Rubber", '')])
+    kclVariantT0D : bpy.props.EnumProperty(name = "Variant", items=[("0", "No spark and no character wall hit voice", ''),
+                                                                ("1", "Spark and character wall hit voice", '')])
+    kclVariantT0E : bpy.props.EnumProperty(name = "Variant", items=[("0", "Unknown", ''),
+                                                                ("1", "Unknown. Used on rock walls", ''),
+                                                                ("2", "Unknown. Used on metal walls", ''),
+                                                                ("3", "Unknown", ''),
+                                                                ("4", "Unknown. Unused", ''),
+                                                                ("5", "Unknown. Used on grass/bushes", ''),
+                                                                ("6", "Unknown. Unused", '')])
+    kclVariantT0F : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
+                                                                ("1", "Rock", ''),
+                                                                ("2", "Metal", ''),
+                                                                ("3", "Wood", ''),
+                                                                ("4", "Ice", ''),
+                                                                ("5", "Bush", ''),
+                                                                ("6", "Rope", ''),
+                                                                ("7", "Rubber", '')])
+    kclVariantT10 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Air fall", ''),
+                                                                ("1", "Water", ''),
+                                                                ("2", "Lava", ''),
+                                                                ("3", "Icy water (Ice on respawn)", ''),
+                                                                ("4", "Lava, no GFX", ''),
+                                                                ("5", "Burning air fall", ''),
+                                                                ("6", "Quicksand", ''),
+                                                                ("7", "Short fall", '')])
+    kclVariant10Index : bpy.props.IntProperty(name = "KMP Index", default = 0, min = 0, max = 255) 
+    kclVariantT11 : bpy.props.EnumProperty(name = "Variant", items=[("0", "To point 0", ''),
+                                                                ("1", "To point 1", ''),
+                                                                ("2", "To point 2", ''),
+                                                                ("3", "To point 3", ''),
+                                                                ("4", "To point 4", ''),
+                                                                ("5", "To point 5", ''),
+                                                                ("6", "To point 6", ''),
+                                                                ("7", "To point 7", '')])
+    kclVariant12Index : bpy.props.IntProperty(name = "AREA Index", default = 0, min = 0, max = 7) 
+    kclVariantT13 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Default", ''),
+                                                                ("1", "Boost pad applied", ''),
+                                                                ("2", "Unknown", '')])
+    kclVariantT14 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
+                                                                ("1", "Rock", ''),
+                                                                ("2", "Metal", ''),
+                                                                ("3", "Wood", ''),
+                                                                ("4", "Ice", ''),
+                                                                ("5", "Bush", ''),
+                                                                ("6", "Rope", ''),
+                                                                ("7", "Rubber", '')])
+    kclVariantT15 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Moves west with BeltCrossing and escalator. ", ''),
+                                                                ("1", "Moves east with BeltCrossing and west with escalator.", ''),
+                                                                ("2", "Moves east with BeltEasy", ''),
+                                                                ("3", "Moves west with BeltEasy", ''),
+                                                                ("4", "Rotates around BeltCurveA clockwise", ''),
+                                                                ("5", "Rotates around BeltCurveA counterclockwise", ''),
+                                                                ("6", "Unknown", '')])
+    kclVariantT16 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Wood", ''),
+                                                                ("1", "Gravel, different impact SFX.", ''),
+                                                                ("2", "Carpet", ''),
+                                                                ("3", "Dirt, no GFX", ''),
+                                                                ("4", "Sand, different impact and drift SFX, no GFX", ''),
+                                                                ("5", "Normal road, SFX on slot 4.4", ''),
+                                                                ("6", "Normal road", ''),
+                                                                ("7", "Mud with GFX", '')])
+    kclVariantT17 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal road, different sound", ''),
+                                                                ("1", "Carpet", ''),
+                                                                ("2", "Grass, GFX on 8.3", ''),
+                                                                ("3", "Normal road, used on green mushrooms", ''),
+                                                                ("4", "Grass", ''),
+                                                                ("5", "Glass road with SFX", ''),
+                                                                ("6", "Dirt (unused)", ''),
+                                                                ("7", "Normal road, SFX on slot 4.4", '')])
+    #SKIPPING SOUND TRIGGERS FOR NOW
+    kclVariantT1A : bpy.props.EnumProperty(name = "Variant", items=[("0", "BRSTM reset", ''),
+                                                                ("1", "Enable shadow effect", ''),
+                                                                ("2", "Water splash (pocha)", ''),
+                                                                ("3", "starGate door activation", ''),
+                                                                ("4", "Half-pipe cancellation", ''),
+                                                                ("5", "Coin despawner", ''),
+                                                                ("6", "Smoke effect on the player when going through dark smoke (truckChimSmkW)", ''),
+                                                                ("7", "Unknown", '')])
+    kclVariantT1D : bpy.props.EnumProperty(name = "Variant", items=[("0", "Carpet, different impact SFX", ''),
+                                                                ("1", "Normal road, different sound, different impact SFX", ''),
+                                                                ("2", "Normal road", ''),
+                                                                ("3", "Glass road", ''),
+                                                                ("4", "Carpet", ''),
+                                                                ("5", "No sound, star crash impact SFX (requires starGate for SFX)", ''),
+                                                                ("6", "Sand", ''),
+                                                                ("7", "Dirt", '')])
+    kclVariantT1E : bpy.props.EnumProperty(name = "Variant", items=[("0", "Cacti", ''),
+                                                                ("1", "Unknown (rubber wall?)", ''),
+                                                                ("2", "Unknown (rubber wall?)", ''),
+                                                                ("3", "Unknown", ''),
+                                                                ("4", "Unknown, SFX on 4.4", ''),
+                                                                ("5", "Unknown", ''),
+                                                                ("6", "Unknown", ''),
+                                                                ("7", "Unknown", '')])
+    kclVariantT1F : bpy.props.EnumProperty(name = "Variant", items=[("0", "Fast Wall, Bump", ''),
+                                                                ("2", "Slow Wall, No Effect", '')])    
+
+    kclFinalFlag : bpy.props.StringProperty(name = "Flag")                                                            
+#endregion
+
+kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
+kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F"]
+
+class KMPUtilities(bpy.types.Panel):
+    bl_label = "KMP Utilities"
+    bl_idname = "_PT_KMP_"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        mytool = scene.kmpt
+        layout.prop(mytool, "scale")
+        layout.operator("kmpc.load")
+        layout.operator("kmpc.cursor")
+        layout.operator("kmpc.gobj")
+        
+class KCLUtilities(bpy.types.Panel):
+    global finalFlag
+    global kcl_typeATypes
+    bl_label = "KCL Utilities"
+    bl_idname = "_PT_KCL_"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        mytool = scene.kmpt
+        layout.prop(mytool, "kcl_masterType")
+        variantPropName = "kclVariant" + mytool.kcl_masterType
+        layout.prop(mytool, variantPropName)
+        if(mytool.kcl_masterType == "T10"):
+            layout.prop(mytool, "kclVariant10Index")
+        if(mytool.kcl_masterType == "T12"):
+            layout.prop(mytool, "kclVariant12Index")
+        if(mytool.kcl_masterType in kcl_typeATypes):
+            layout.prop(mytool, "kcl_shadow")
+            layout.prop(mytool, "kcl_trickable")
+            layout.prop(mytool, "kcl_drivable")
+        if(mytool.kcl_masterType in kcl_wallTypes):
+            layout.prop(mytool, "kcl_bounce") 
+        
+        layout.operator("kclc.applyflag")
+        layout.operator("kclc.export")
+        
+class AREAUtilities(bpy.types.Panel):
+    bl_label = "AREA Utilities"
+    bl_idname = "_PT_KMP_AREA_"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        mytool = scene.kmpt
+        layout.operator("kmpc.area")
+        layout.label(text="Create AREA")
+        area_create_column = layout.column()
+        area_create_column.operator("kmpc.c_cube_area")
+        area_create_column.operator("kmpc.c_cylinder_area")
+        
+        layout.label(text="AREA Settings")
+        area_setting_column = layout.column()
+        area_setting_column.prop(mytool, "kmp_areaEnumType")
+        area_setting_column.prop(mytool, "kmp_areaPrority")
+        if(mytool.kmp_areaEnumType == "A0"):
+            area_setting_column.prop(mytool, "kmp_areaID")
+        elif(mytool.kmp_areaEnumType == "A1"):
+            area_setting_column.prop(mytool, "kmp_areaEvnKarehaUp")
+        elif(mytool.kmp_areaEnumType == "A2"):
+            area_setting_column.prop(mytool, "kmp_areaPostEffectEntry")
+        elif(mytool.kmp_areaEnumType == "A3"):
+            area_setting_column.prop(mytool, "kmp_areaRoute")
+            area_setting_column.prop(mytool, "kmp_areaMovingRouteSet1")
+            area_setting_column.prop(mytool, "kmp_areaMovingRouteSet2")
+        elif(mytool.kmp_areaEnumType == "A4"):
+             area_setting_column.prop(mytool, "kmp_areaEnemy")
+        elif(mytool.kmp_areaEnumType == "A6"):
+             area_setting_column.prop(mytool, "kmp_areaIDK1")
+             area_setting_column.prop(mytool, "kmp_areaIDK2")
+        elif(mytool.kmp_areaEnumType == "A8" or mytool.kmp_areaEnumType == "A9"):
+             area_setting_column.prop(mytool, "kmp_areaGroup")
+        
+        if(bpy.context.object is not None):
+            current_mode = bpy.context.object.mode
+        else:
+            current_mode = 'OBJECT'
+        
+        if(current_mode != 'OBJECT'):
+            area_create_column.enabled = False
+        else:
+            area_create_column.enabled = True
+        
+
+#endregion
+finalFlag = ''
+properFlag = ''
+class apply_kcl_flag(bpy.types.Operator):
+    global kcl_typeATypes, finalFlag, kcl_wallTypes, properFlag
+    bl_idname = "kclc.applyflag"
+    bl_label = "Apply Flag"
+    bl_description = "Apply current flag"
+    
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        variantPropName = "kclVariant" + mytool.kcl_masterType
+        z = ''
+        if(hasattr(mytool, variantPropName)):
+            z = getattr(mytool, variantPropName)
+            z = '{:03b}'.format(int(z))
+        typeaflag = ''
+        if(mytool.kcl_masterType in kcl_typeATypes):
+            y = mytool.kcl_shadow
+            y = '{:03b}'.format(int(y))
+            w = "0" + str(int(mytool.kcl_drivable == False)) + str(int(mytool.kcl_trickable))
+            typeaflag = w+"00"+y
+        a = '{:01b}'.format(int(mytool.kcl_masterType[1],16))
+        b = '{:04b}'.format(int(mytool.kcl_masterType[2],16))
+        flag = typeaflag+z+a+b
+        if(mytool.kcl_masterType == 'T10'):
+            flag = '{:08b}'.format(mytool.kclVariant10Index)+a+b
+        if(mytool.kcl_masterType == 'T12'):
+            flag = '{:08b}'.format(mytool.kclVariant12Index)+a+b
+        if(mytool.kcl_masterType in kcl_wallTypes):
+            w = int(mytool.kcl_bounce == False)
+            flag = str(w)+"0000000"+z+a+b
+        finalFlag = '{:04x}'.format(int(flag,2))
+        mytool.kclFinalFlag = finalFlag 
+        properFlag = "_"+mytool.kcl_masterType[1:]+"_F"+finalFlag
+        properFlag = properFlag.upper()
+        activeObject = context.active_object
+        if(activeObject.type == "MESH"):
+            context.active_object.data.materials.clear()
+            mat = bpy.data.materials.get(properFlag)
+            if mat is None:
+                mat = bpy.data.materials.new(name=properFlag)
+                mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+            context.active_object.data.materials.append(mat)
+            activeObject.name = properFlag
+            activeObject.data.name = properFlag
+
+
+        return {'FINISHED'}
+
+class export_kcl_file(bpy.types.Operator, ExportHelper):
+    bl_idname = "kclc.export"
+    bl_label = "Export KCL"
+    filename_ext = ".kcl"
+
+    kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 1)
+    kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
+    kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
+    kclExportWeakWalls : bpy.props.BoolProperty(name="Weak Walls")
+    kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
+    kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
+    kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
+    kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road")
+    kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls")
+
+    def execute(self, context):
+        addLowerWallsScript()
+#       objects = filter(lambda obj: obj.type == "MESH", context.scene.collection.all_objects)
+        filepath = self.filepath
+
+        bpy.ops.export_scene.obj(filepath=filepath, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
+        
+        wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
+        wkclt += ("WEAKWALLS, " if self.kclExportWeakWalls else "")
+        wkclt += ("DROPUNUSED, " if self.kclExportDropUnused else "")
+        wkclt += ("DROPFIXED, " if self.kclExportDropFixed else "")
+        wkclt += ("DROPINVALID, " if self.kclExportDropInvalid else "")
+        wkclt += ("RMFACEDOWN, " if self.kclExportRemoveFacedown else "")
+        wkclt += ("RMFACEUP, " if self.kclExportRemoveFaceup else "")
+        wkclt += (" --kcl-script=lower-walls.txt --const lower=" + str(self.kclExportLowerWallsBy) if self.kclExportLowerWalls else "")
+        os.system(wkclt)
+
+        return {'FINISHED'}
+
+class addLowerWallsScript:
+    cwd = os.getcwd() + "\lower-walls.txt"
+    file = open(cwd, "a+")
+    if file.read() is "":
+        print("no script?")
+        file.write("@def start	= mSec()\n@def mod_count	= 0\n@def lower = isNumeric(lower) ? lower : 30\n@def degree = isNumeric(degree) && degree > 0 ? degree : 45\n@def sin_degree = sin(degree) \n@function isWall # flag\n    @pdef t = $1 & 0x1f\n    @return t == 0x0c || t == 0x0d || t == 0x0f || t == 0x14 || t == 0x1e || t == 0x1f\n@endfunction\n@for t=0;tri$n()-1\t@if isWall(tri$flag(t))\n\t@def norm = tri$normal(t,0)\n\t@if abs(norm.y) < sin_degree\n\t\t\t@def status = tri$shift(t,-vy(lower))\n\t\t\t@def mod_count = mod_count+1\n\t\t@endif\n\t@endif\n@endfor")
+    file.close()  
+    
+    
+
+class cursor_kmp (bpy.types.Operator):
+    bl_idname = "kmpc.cursor"
+    bl_label = "Position from 3D Cursor"
+    bl_description = "Converts current 3D Cursor position and puts into clipboard"
+    
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        cursor_position = context.scene.cursor.location
+        scale = mytool.scale
+        xpos = round(cursor_position[0] * scale, 2)
+        ypos = round(cursor_position[2] * scale, 2)
+        zpos = round(cursor_position[1] * scale * -1, 2) 
+
+        position = str(xpos) + "\t" + str(ypos) + "\t" + str(zpos)
+        print(position)
+        bpy.context.window_manager.clipboard = position
+        return {'FINISHED'}
+
+class kmp_gobj (bpy.types.Operator):
+    bl_idname = "kmpc.gobj"
+    bl_label = "GOBJ from Selected"
+    bl_description = "Converts selected objects position and puts them into clipboard as GOBJ"
+    
+    def execute(self, context):
+        data = ""
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+        selected = bpy.context.selected_objects
+        x = 0
+        for object in selected:
+            object_position = object.location
+            xpos = round(object_position[0] * scale, 2)
+            ypos = round(object_position[2] * scale, 2)
+            zpos = round(object_position[1] * scale * -1, 2)
+            xrot = round(math.degrees(object.rotation_euler[0]), 2)
+            yrot = round(math.degrees(object.rotation_euler[2]), 2)
+            zrot = round(math.degrees(object.rotation_euler[1]), 2)
+            xscl = round(object.scale[0],2)
+            yscl = round(object.scale[2],2)
+            zscl = round(object.scale[1],2)
+            position = str(x) + "\t" + str(xpos) + "\t" + str(ypos) + "\t" + str(zpos) + "\t" + str(xrot) + "\t" + str(yrot) + "\t" + str(zrot) + "\t" + str(xscl) + "\t" + str(yscl) + "\t" + str(zscl) + "\tFFFF\t0000\t0000\t0000\t0000\t0000\t0000\t0000\t0000\t003F\n"
+            data = data + position
+            x = x + 1
+        
+        bpy.context.window_manager.clipboard = data
+        return {'FINISHED'}
+    
+class kmp_area (bpy.types.Operator):
+    bl_idname = "kmpc.area"
+    bl_label = "AREA from Selected"
+    bl_description = "Converts selected objects position and puts them into clipboard as AREA"
+    
+    def execute(self, context):
+        data = ""
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+        selected = bpy.context.selected_objects
+        x = 0
+        for object in selected:
+            if not object.name.startswith("AREA_"):
+                self.report({"WARNING"}, "One or more selected objects is not a proper AREA")
+                return {'CANCELLED'}
+            
+        for object in selected:
+            object_position = object.location
+            name = object.name
+            properties = name.split("_")
+            areaNumber = '0x{0:0{1}X}'.format(int(properties[1]), 2)[2:]
+            areaShape = '0x{0:0{1}X}'.format(int(properties[2]), 2)[2:]
+            areaType = '0x{0:0{1}X}'.format(int(properties[3]), 2)[2:]
+            areaID = "FF" if properties[4] == "-1" else '0x{0:0{1}X}'.format(int(properties[4]), 2)[2:]
+            areaPrority = '0x{0:0{1}X}'.format(int(properties[5]), 2)[2:]
+            areaSet1 = '0x{0:0{1}X}'.format(int(properties[6]), 4)[2:]
+            areaSet2 = '0x{0:0{1}X}'.format(int(properties[7]), 4)[2:]
+            areaSet = str(areaSet1) + str(areaSet2)
+            areaRoute = '0x{0:0{1}X}'.format(int(properties[8]), 2)[2:]
+            if properties[8] == "-1":
+                areaRoute = "FF"
+            areaEnemy = '0x{0:0{1}X}'.format(int(properties[9]), 2)[2:]
+            if properties[9] == "-1":
+                areaEnemy = "FF"
+            xpos = round(object_position[0] * scale, 2)
+            ypos = round(object_position[2] * scale, 2)
+            zpos = round(object_position[1] * scale * -1, 2)
+            xrot = round(math.degrees(object.rotation_euler[0]), 2)
+            yrot = round(math.degrees(object.rotation_euler[2]), 2)
+            zrot = round(math.degrees(object.rotation_euler[1]), 2)
+            xscl = round(object.scale[0],2)
+            yscl = round(object.scale[2],2)
+            zscl = round(object.scale[1],2)
+            dataValue = str("%02d" % x) + "\t" + str(areaShape) + "\t" + str(areaType) + "\t" + str(areaID) + "\t" + str(areaPrority)  + "\t" +\
+            str(xpos) + "\t" + str(ypos) + "\t" + str(zpos) + "\t" + str(xrot) + "\t" + str(yrot) + "\t" + str(zrot) + "\t" + str(xscl) + "\t" + str(yscl) + "\t" + str(zscl) +\
+            "\t" + str(areaSet) + "\t" + str(areaRoute) + str(areaEnemy) + "\t0000\n"
+            data = data + dataValue
+            x = x + 1
+            
+            print(areaSet)
+        bpy.context.window_manager.clipboard = data
+        return {'FINISHED'}
+
+
+class kmp_c_cube_area (bpy.types.Operator):
+    bl_idname = "kmpc.c_cube_area"
+    bl_label = "Create cube AREA Model"
+    bl_description = "Creates a cubic AREA Model is proper scale and origin (Move it only in OBJECT mode)"
+    
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+        cursor_position = context.scene.cursor.location
+        
+        existingAreas = 0;
+        for obj in bpy.data.objects:
+            if "area_" in obj.name.lower():
+                existingAreas = existingAreas + 1
+        
+        bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=cursor_position)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        activeObject = bpy.context.active_object
+        activeObject.name = "AREA_" + str(existingAreas) + "_0_0_0_0_0_0_-1_0"
+        name = activeObject.name
+        properties = name.split("_")
+        mytool.kmp_areaEnumType = "A" + properties[3]
+        mytool.kmp_areaID = int(float(properties[4]))
+        mytool.kmp_areaPrority = int(properties[5])
+        mytool.kmp_areaSet1 = properties[6]
+        mytool.kmp_areaSet2 = properties[7]
+        mytool.kmp_areaRoute = int(properties[8])
+        mytool.kmp_areaEnemy = int(properties[9])
+          
+        return {'FINISHED'}
+
+
+class kmp_c_cylinder_area (bpy.types.Operator):
+    bl_idname = "kmpc.c_cylinder_area"
+    bl_label = "Create cylinder AREA Model"
+    bl_description = "Creates a cylindrical AREA Model is proper scale and origin (Move it only in OBJECT mode)"
+    
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+        cursor_position = context.scene.cursor.location
+        
+        existingAreas = 0;
+        for obj in bpy.data.objects:
+            if "area_" in obj.name.lower():
+                existingAreas = existingAreas + 1
+        
+        bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=cursor_position)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        activeObject = bpy.context.active_object
+        activeObject.name = "AREA_" + str(existingAreas) + "_1_0_0_0_0_0_-1_0"
+        name = activeObject.name
+        properties = name.split("_")
+        mytool.kmp_areaEnumType = "A" + properties[3]
+        mytool.kmp_areaID = int(float(properties[4]))
+        mytool.kmp_areaPrority = int(properties[5])
+        mytool.kmp_areaSet1 = properties[6]
+        mytool.kmp_areaSet2 = properties[7]
+        mytool.kmp_areaRoute = int(properties[8])
+        mytool.kmp_areaEnemy = int(properties[9])
+        return {'FINISHED'}
+  
+loading = 0
+class load_kmp(bpy.types.Operator, ImportHelper):
+    bl_idname = "kmpc.load"
+    bl_label = "Load KMP file"       
+    filename_ext = '.kmp'
+    bl_description = "Loads KMP file and imports AREAs with settings"
+    
+    filter_glob: bpy.props.StringProperty(
+        default='*.kmp',
+        options={'HIDDEN'}
+    )
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+        global loading
+        loading = 1
+        
+        checkMaterial()
+        
+        path = self.filepath
+        file = open(path, "rb")
+        magic = struct.unpack('4s', file.read(4))[0].decode("ascii")
+        if(magic != "RKMD"):
+            self.report({"WARNING"}, "Wrong file magic")
+            return {'CANCELLED'}
+        
+        fileLen = struct.unpack(">I", file.read(4))[0]
+        sectionNumber = struct.unpack(">H", file.read(2))[0]
+        headerLen = struct.unpack(">H", file.read(2))[0]
+        versionNumber = struct.unpack(">I", file.read(4))[0]
+        sectionOffsets = []
+        for i in range(int(sectionNumber)):
+            sectionOffsets.append(struct.unpack(">I", file.read(4))[0])
+        print(sectionOffsets)
+        
+        existingAreas = 0;
+        for obj in bpy.data.objects:
+            if "area_" in obj.name.lower():
+                existingAreas = existingAreas + 1
+        
+        areaOffset = 80 + sectionOffsets[9]
+        file.seek(areaOffset, 0)
+        areaNumber = struct.unpack('>H', file.read(2))[0]
+        areaUnused = struct.unpack('>H', file.read(2))[0]
+        scale = mytool.scale
+        areas = []
+        for i in range(int(areaNumber)):
+            areaShape = struct.unpack('>b', file.read(1))[0]
+            areaType = struct.unpack('>b', file.read(1))[0]
+            areaCAME = struct.unpack('>b', file.read(1))[0]
+            areaPriority = struct.unpack('>b', file.read(1))[0]
+            areaXPos = struct.unpack('>f', file.read(4))[0]
+            areaYPos = struct.unpack('>f', file.read(4))[0]
+            areaZPos = struct.unpack('>f', file.read(4))[0]
+            areaXRot = struct.unpack('>f', file.read(4))[0]
+            areaYRot = struct.unpack('>f', file.read(4))[0]
+            areaZRot = struct.unpack('>f', file.read(4))[0]
+            areaXScale = struct.unpack('>f', file.read(4))[0]
+            areaYScale = struct.unpack('>f', file.read(4))[0]
+            areaZScale = struct.unpack('>f', file.read(4))[0]
+            areaSet1 = struct.unpack('>H', file.read(2))[0]
+            areaSet2 = struct.unpack('>H', file.read(2))[0]
+            areaRoute = struct.unpack('>b', file.read(1))[0]
+            areaEnemy = struct.unpack('>b', file.read(1))[0]
+            areaPadding = struct.unpack('>h', file.read(2))[0]
+            print(str(areaEnemy))
+            areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
+            areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
+            areaScale = (areaXScale, areaZScale, areaYScale)
+            areaName = "AREA_" + str(existingAreas + i) + "_" + '{:X}'.format(areaShape) + "_" + str(int(areaType)) + "_" + str(int(areaCAME))\
+            + "_" + '{:X}'.format(areaPriority) + "_" + '{:X}'.format(areaSet1) + "_" + '{:X}'.format(areaSet2) + "_" + str(areaRoute) + "_" + str(areaEnemy)
+             
+            areaName = areaName.upper()
+            if(str(areaShape) == "0"):
+                bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation, rotation=areaRotation)
+                obj = bpy.context.selected_objects[0]
+                obj.name = areaName
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.transform.resize(value=areaScale, orient_type='LOCAL')      
+            if(str(areaShape) == "1"):
+                bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=areaLocation, rotation=areaRotation)
+                obj = bpy.context.selected_objects[0]
+                obj.name = areaName
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.transform.resize(value=areaScale, orient_type='LOCAL')          
+            activeObject = bpy.context.active_object
+            mat = bpy.data.materials.get("kmpc.area.A" + str(int(areaType)))
+            activeObject.data.materials.append(mat)
+            
+        
+        loading = 0
+        return {'FINISHED'}
+
+matColors = [(1.0, 0.262251, 0, 0.6), 
+            (0, 0.009134, 0.274677, 0.6), 
+            (0.838799, 0, 0.262251, 0.6), 
+            (0.138432, 0.015209, 0.194618, 0.6), 
+            (0.341914, 0.337474, 0.273874, 0.6), 
+            (0.018564, 0.016922, 0.031063, 0.6),
+            (0.341914, 0.337474, 0.273874, 0.6),
+            (0, 0.341914, 0.066626, 0.6), 
+            (0.8, 0.879623, 0, 0.6), 
+            (0.445201, 0.8, 0.296138, 0.6), 
+            (0.806953, 0.006, 0.016807, 0.6)]
+
+
+def checkMaterial():
+    for i in range(11):   
+        matName = "kmpc.area.A" + str(i)
+        mat = bpy.data.materials.get(matName)
+        if mat is None:
+            mat = bpy.data.materials.new(matName)
+            mat.diffuse_color = matColors[i]
+            mat.blend_method = 'BLEND' 
+
+def update_scene_handler(scene):
+    global lastselection, setting1users, setting2users
+    mytool = scene.kmpt
+    activeObject = bpy.context.active_object
+    #0 - AREA Header
+    #1 - Number
+    #2 - Shape
+    #3 - Type
+    #4 - CAME
+    #5 - Priority
+    #6 - Setting 1
+    #7 - Setting 2
+    #8 - Route
+    #9 - Enemy Point
+    
+    if(loading == 0):
+        if hasattr(activeObject, "name"):
+            if(activeObject.name.startswith("AREA_")):
+                if(lastselection != activeObject):
+                    name = activeObject.name
+                    properties = name.split("_")
+                    mytool.kmp_areaEnumType = "A" + properties[3]
+                    mytool.kmp_areaPrority = int(properties[5])
+                    mytool.kmp_areaSet1 = properties[6]
+                    mytool.kmp_areaSet2 = properties[7]
+
+                    mytool.kmp_areaEnemy = int(properties[9])
+                    #Clear settings which are not in selected AREA type
+                    mytool.kmp_areaID = int(float(properties[4]))
+                    mytool.kmp_areaRoute = int(properties[8])
+                    mytool.kmp_areaEnemy = int(float(properties[9]))
+                    mytool.kmp_areaSet1 = "0" if mytool.kmp_areaEnumType not in setting1users else properties[6]
+                    mytool.kmp_areaSet2 = "0" if mytool.kmp_areaEnumType not in setting2users else properties[7]
+                    mytool.kmp_areaPostEffectEntry = int(mytool.kmp_areaSet1)
+                    mytool.kmp_areaMovingRouteSet1 = int(mytool.kmp_areaSet1)
+                    mytool.kmp_areaMovingRouteSet2 = int(mytool.kmp_areaSet2)
+                    mytool.kmp_areaIDK1 = int(mytool.kmp_areaSet1)
+                    mytool.kmp_areaIDK2 = int(mytool.kmp_areaSet2)
+                    mytool.kmp_areaGroup = int(mytool.kmp_areaSet1)
+                
+
+            
+    lastselection = activeObject
+
+classes = [MyProperties, KMPUtilities, KCLUtilities, AREAUtilities, apply_kcl_flag, cursor_kmp, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file]
+ 
+ 
+ 
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
+    bpy.types.Scene.kmpt = bpy.props.PointerProperty(type= MyProperties)
+ 
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
+    bpy.app.handlers.depsgraph_update_post.remove(update_scene_handler)
+    del bpy.types.Scene.kmpt
+ 
+ 
+if __name__ == "__main__":
+    register()
