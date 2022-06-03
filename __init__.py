@@ -1,5 +1,5 @@
 bl_info = {
-    "name" : "KMP Utilities",
+    "name" : "Mario Kart Wii Utilities",
     "author" : "Gabriela_",
     "version" : (1, 0),
     "blender" : (2, 82, 0),
@@ -527,12 +527,10 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
     kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
     kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
-    kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road")
-    kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls")
+    kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road", default=True)
+    kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls", default=True)
 
     def execute(self, context):
-        addLowerWallsScript()
-#       objects = filter(lambda obj: obj.type == "MESH", context.scene.collection.all_objects)
         filepath = self.filepath
 
         bpy.ops.export_scene.obj(filepath=filepath, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
@@ -544,18 +542,15 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         wkclt += ("DROPINVALID, " if self.kclExportDropInvalid else "")
         wkclt += ("RMFACEDOWN, " if self.kclExportRemoveFacedown else "")
         wkclt += ("RMFACEUP, " if self.kclExportRemoveFaceup else "")
-        wkclt += (" --kcl-script=lower-walls.txt --const lower=" + str(self.kclExportLowerWallsBy) if self.kclExportLowerWalls else "")
+        
+        script_file = os.path.normpath(__file__)
+        directory = os.path.dirname(script_file)
+        wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt"  "\"" if self.kclExportLowerWalls else "")
+        print(wkclt)
         os.system(wkclt)
 
         return {'FINISHED'}
 
-class addLowerWallsScript:
-    cwd = os.getcwd() + "\lower-walls.txt"
-    file = open(cwd, "a+")
-    if file.read() is "":
-        print("no script?")
-        file.write("@def start	= mSec()\n@def mod_count	= 0\n@def lower = isNumeric(lower) ? lower : 30\n@def degree = isNumeric(degree) && degree > 0 ? degree : 45\n@def sin_degree = sin(degree) \n@function isWall # flag\n    @pdef t = $1 & 0x1f\n    @return t == 0x0c || t == 0x0d || t == 0x0f || t == 0x14 || t == 0x1e || t == 0x1f\n@endfunction\n@for t=0;tri$n()-1\t@if isWall(tri$flag(t))\n\t@def norm = tri$normal(t,0)\n\t@if abs(norm.y) < sin_degree\n\t\t\t@def status = tri$shift(t,-vy(lower))\n\t\t\t@def mod_count = mod_count+1\n\t\t@endif\n\t@endif\n@endfor")
-    file.close()  
     
     
 
