@@ -18,8 +18,8 @@ from bpy_extras.io_utils import ImportHelper, ExportHelper
 
 
 lastselection = []
-setting1users = ["A2", "A3", "A6", "A8", "A9"]
-setting2users = ["A3", "A6"]
+setting1users = ["A2", "A3", "A6", "A8", "A9", "A10"]
+setting2users = ["A3", "A6", "A10"]
    
 def updateArea(self, context):
     checkMaterial()
@@ -38,6 +38,9 @@ def updateArea(self, context):
     scene = context.scene
     mytool = scene.kmpt
     activeObject = bpy.context.active_object
+    if(hasattr(activeObject, "name") == False):
+        return
+
     if(lastselection == activeObject):
         if(activeObject.name.startswith("AREA_")): 
             name = activeObject.name
@@ -67,6 +70,20 @@ def updateArea(self, context):
                 kmp_areaSet2 = str(mytool.kmp_areaIDK2) 
             elif(ctype == 'A8' or ctype == 'A9'):
                 kmp_areaSet1 = str(mytool.kmp_areaGroup)
+            elif(ctype == 'A10'):
+                if(mytool.kmp_areaUseCOOB):
+                    if(mytool.kmp_areaCOOBVersion == "kHacker"):
+                        kmp_areaRoute = "1"
+                        kmp_areaSet2 = str(mytool.kmp_areakHackerCheckpoint)
+                        kmp_areaSet1 = str(mytool.kmp_areakHackerMode)
+                    elif(mytool.kmp_areaCOOBVersion == "Riidefi"):
+                        kmp_areaRoute = "-1"
+                        if(mytool.kmp_areaRiidefiInvert == True):
+                            kmp_areaSet1 = str(mytool.kmp_areaRiidefiP2)
+                            kmp_areaSet2 = str(mytool.kmp_areaRiidefiP1)
+                        else:
+                            kmp_areaSet1 = str(mytool.kmp_areaRiidefiP1)
+                            kmp_areaSet2 = str(mytool.kmp_areaRiidefiP2)
                                 
             areaName = properties[0] + "_" + properties[1] + "_"  + properties[2] + "_"  + str(mytool.kmp_areaEnumType[1:]) + "_"  + kmp_areaID + "_" +\
             str(mytool.kmp_areaPrority) + "_"  + kmp_areaSet1 + "_"  + kmp_areaSet2 + "_"  + kmp_areaRoute + "_"  + kmp_areaEnemy
@@ -129,6 +146,23 @@ class MyProperties(bpy.types.PropertyGroup):
     #AREA8&9
     kmp_areaGroup : bpy.props.IntProperty(name = "Group", min= 0, default= 0, update=updateArea,
                                         description= "Defines the group for AREA type 8 (Object Grouper) and 9 (Group Unloader) to work together")
+    #AREA10
+    kmp_areaUseCOOB : bpy.props.BoolProperty(name = "Conditional Out of Bounds?", default = False, 
+                                        description = "You can use this type of AREA as Conditional Out of Bounds (Both Riidefi's and kHacker's versions are supported)",
+                                                                    update=updateArea)
+    kmp_areaCOOBVersion : bpy.props.EnumProperty(name = "COoB Mode", items=[("kHacker", "kHacker35000vr", "Use kHacker's cheat code"),
+                                                                            ("Riidefi", "Ridefii", "Use Riidefi's cheat code\nThe AREA will be enabled if and only if a player is in the Cth checkpoint sector such that P1 <= C < P2.\nNOTE: If both P1 and P2 are zero, this code is disabled, and the boundary is unconditionally enabled.\nNOTE: If P1 > P2, the range functions in blacklist mode. The AREA will be disabled within P2 <= C < P1, and enabled everywhere else.")],
+                                                                    update=updateArea)
+    kmp_areakHackerMode : bpy.props.EnumProperty(name = "In KCP region", items=[("0", "Enable COoB", 'Enables this Fall Boundaries while inside entered key checkpoint region'),
+                                                                            ("1", "Disable COoB", 'Disables this Fall Boundaries while inside entered key checkpoint region')],
+                                                                    update=updateArea)
+    kmp_areakHackerCheckpoint : bpy.props.IntProperty(name = "KCL Region", min = 0, max = 255, description = "Condition is met while player is inside this key checkpoint region",
+                                                                    update=updateArea)
+    kmp_areaRiidefiP1 : bpy.props.IntProperty(name="Checkpoint 1 (P1)", min = 0, max = 255, description = "First checkpoint of the range (P1 <= C < P2)", update=updateArea)
+    kmp_areaRiidefiP2 : bpy.props.IntProperty(name="Checkpoint 2 (P2)", min = 0, max = 255, description = "Second checkpoint of the range (P1 <= C < P2)", update=updateArea)
+    kmp_areaRiidefiInvert : bpy.props.BoolProperty(name="Invert", description = "Checking this option will invert when condition is meet. For example if you have this AREA enabled only when the player is in chosen checkpoint range, it will make it enabled only when the player is OUTSIDE chosen checkpoint range", update=updateArea) 
+
+
 #endregion
  #region kcl_types   
 
@@ -334,7 +368,138 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("5", "Glass road with SFX", ''),
                                                                 ("6", "Dirt (unused)", ''),
                                                                 ("7", "Normal road, SFX on slot 4.4", '')])
-    #SKIPPING SOUND TRIGGERS FOR NOW
+    
+    kclVariantT18Circuits : bpy.props.EnumProperty(name = "Track", items=[("11", "Luigi Circuit", ''),
+                                                                ("13", "Mushroom Gorge", ''),
+                                                                ("14", "Toad's Factory", ''),
+                                                                ("21", "Mario Circuit", ''),
+                                                                ("22", "Coconut Mall", ''),
+                                                                ("23", "DK Summit (Snowboard Cross)", ''),
+                                                                ("24", "Wario's Gold Mine", ''),
+                                                                ("31", "Daisy Circuit", ''),
+                                                                ("32", "Koopa Cape", ''),
+                                                                ("33", "Maple Treeway", ''),
+                                                                ("34", "Grumble Volcano", ''),
+                                                                ("41", "Dry Dry Ruins", ''),
+                                                                ("42", "Moonview Highway", ''),
+                                                                ("43", "Bowser's Castle", ''),
+                                                                ("44", "Rainbow Road", ''),
+                                                                ("54", "N64 Mario Raceway", ''),
+                                                                ("61", "N64 Sherbet Land", ''),
+                                                                ("63", "DS Delfino Square", ''),
+                                                                ("73", "N64 DK's Jungle Parkway", ''),
+                                                                ("74", "GCN Mario Circuit", ''),
+                                                                ("83", "GCN DK Mountain", ''),
+                                                                ("84", "N64 Bowser's Caslte", '')])
+    kclVariantT1811 : bpy.props.EnumProperty(name = "Variant", items=[("0", "No audience noise", ''),
+                                                ("1", "Soft audience noise", ''),
+                                                ("2", "Audience noise. The race starts with this sound", ''),
+                                                ("3", "Lound audience noice", '')])
+    kclVariantT1813 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate all", ''),
+                                                ("3", "Enable cave SFX + echo", '')])
+    kclVariantT1814 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sounds off", ''),
+                                                ("1", "Hydraulic press area", ''),
+                                                ("2", "Shipping dock area", ''),
+                                                ("3", "Moving belt area", ''),
+                                                ("4", "Steam room", ''),
+                                                ("5", "Restart music at beginning", ''),
+                                                ("6", "Bulldozer area", ''),
+                                                ("7", "Audience area", '')])
+    kclVariantT1821 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivates echo", ''),
+                                                ("1", "Weak echo", ''),
+                                                ("2", "Loud echo", '')])
+    kclVariantT1822 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Resets all sound triggers. Shopping mall ambience requires this to play", ''),
+                                                ("1", "Weak shopping mall ambience + disables echo", ''),
+                                                ("2", "Loud shopping mall ambience + strong echo", ''),
+                                                ("3", "Resets all sound triggers and prevents shopping mall ambience from playing until 0 is hit again", ''),
+                                                ("4", "Loud shopping mall ambience + disables echo", ''),
+                                                ("5", "Same as 3?", '')])
+    kclVariantT1823 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivates cheering", ''),
+                                                ("1", "Weak cheering ambience", ''),
+                                                ("2", "Loud cheering ambience", ''),
+                                                ("3", "Loudest cheering ambience.", ''),
+                                                ("4", "Enables cheering when going off half-pipe ramps", '')])
+    kclVariantT1824 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Music change (outside)", ''),
+                                                ("1", "Music change (cave) + gentle echo", ''),
+                                                ("2", "Echo", ''),
+                                                ("3", "Strong echo", '')])
+    kclVariantT1831 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate echo", ''),
+                                                ("1", "Weak echo", ''),
+                                                ("2", "Echo", '')])
+    kclVariantT1832 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Music change (normal)", ''),
+                                                ("1", "Music change (normal), echo", ''),
+                                                ("2", "Stronger echo", ''),
+                                                ("3", "Music change (underwater), water ambience enabled when entering from 0, 5 or 6, diabled otherwise", ''),
+                                                ("4", "Strongest echo, water ambience enabled", ''),
+                                                ("5", "Music change (normal), strongest echo, water ambience enabled when entering from 3", ''),
+                                                ("6", "Music change (riverside)", '')])
+    kclVariantT1833 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate echo and wind ambience", ''),
+                                                ("1", "No effect", ''),
+                                                ("2", "Weak echo", ''),
+                                                ("3", "Loud echo", ''),
+                                                ("4", "Enables wind ambience, deactivates echo", '')])
+    kclVariantT1834 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate echo", ''),
+                                                ("1", "Weak echo, toggles after two seconds", ''),
+                                                ("2", "Loud echo, toggles after one second", ''),
+                                                ("3", "Loud echo, toggles after two seconds", '')])
+    kclVariantT1841 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Music change (normal)", ''),
+                                                ("1", "Music change (indoors, where the bats come from the sides)", ''),
+                                                ("2", "Music change (indoors, where the half-pipes are)", ''),
+                                                ("3", "Music change (indoors, where the Pokeys are)", '')])
+    kclVariantT1842 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate city ambience, default music", ''),
+                                                ("1", "Stage 2, weak city ambience, adds flute to music", ''),
+                                                ("2", "Stage 4, louder city ambience, disable echo", ''),
+                                                ("3", "Stage 5, loudest city ambience, disable echo", ''),
+                                                ("4", "Stage 3, loud city ambience, enable echo", ''),
+                                                ("5", "Stage 1, weakest city ambience, enable echo", '')])
+    kclVariantT1843 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Disable one-time use sound trigger (like Bowser's howl)", ''),
+                                                ("1", "Bowser's howl + echo. Put 7 at the end of a turn to be able to reuse Bowser's howl", ''),
+                                                ("2", "Sound distortion + echo", ''),
+                                                ("3", "Deactivate sound distortion + echo", ''),
+                                                ("4", "Add drums + echo on music + koopaBall/koopaFigure SFX", ''),
+                                                ("5", "Deactivate koopaBall/koopaFigure SFX", ''),
+                                                ("6", "Add drums without echo", ''),
+                                                ("7", "Back to normal. Allow reuse for one-time use sound trigger", '')])
+    kclVariantT1844 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivator", ''),
+                                                ("1", "Gate sound 1 (add a deactivator before and after if you use only one gate)", ''),
+                                                ("2", "Star ring sound 1", ''),
+                                                ("3", "Star ring sound 2", ''),
+                                                ("4", "Star ring sound 3", ''),
+                                                ("5", "Star ring sound 4", ''),
+                                                ("6", "Tunnel sound (add a deactivator to stop it)", '')])
+    kclVariantT1854 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivates cheering", ''),
+                                                ("1", "Loud cheering", ''),
+                                                ("2", "Louder cheering", ''),
+                                                ("3", "Weak cheering", '')])
+    kclVariantT1861 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate all", ''),
+                                                ("1", "Cave echo", ''),
+                                                ("2", "Cave SFX", '')])
+    kclVariantT1863 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Unknown. In a position such that a player may collide with this trigger if they complete the dock shortcut", ''),
+                                                ("1", "Very, very distant whistles, cheers and chatter from spectators", ''),
+                                                ("2", "Very distant whistles, cheers and chatter from spectators", ''),
+                                                ("3", "Distant whistles, cheers and chatter from spectators", ''),
+                                                ("4", "Whistles, cheers and chatter from spectators", ''),
+                                                ("5", "Single wind gust just before the dock section", ''),
+                                                ("6", "No spectator ambience", ''),
+                                                ("7", "The same as 6? Used between triggers of type 6", '')])
+    kclVariantT1873 : bpy.props.EnumProperty(name = "Variant", items=[("0", "No jungle ambience. Used near water sections", ''),
+                                                ("1", "Jungle ambience (bird squawks, insect hum, animal roar). Used as a buffer between types 0 and 2", ''),
+                                                ("2", "Intense jungle ambience, used in areas of deep forest", ''),
+                                                ("3", "Cave ambience", '')])
+    kclVariantT1874 : bpy.props.EnumProperty(name = "Variant", items=[("0", "No echo", ''),
+                                                ("1", "Weak echo", ''),
+                                                ("2", "Loud echo", '')])
+    kclVariantT1883 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate all", ''),
+                                                ("1", "Jungle SFX (animals)", ''),
+                                                ("2", "Water + wind SFX", '')])
+    kclVariantT1884 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Disable one-time use sound trigger (like Bowser's howl)", ''),
+                                                ("1", "Turns lava SFX off + disables echo", ''),
+                                                ("2", "Bowser's howl. Put 0 at the end of a turn to be able to reuse this", ''),
+                                                ("3", "Turns lava SFX off", ''),
+                                                ("4", "Turns lava SFX off + echo", ''),
+                                                ("5", "Echo", ''),
+                                                ("6", "Strong echo", '')])
+
     kclVariantT1A : bpy.props.EnumProperty(name = "Variant", items=[("0", "BRSTM reset", ''),
                                                                 ("1", "Enable shadow effect", ''),
                                                                 ("2", "Water splash (pocha)", ''),
@@ -404,6 +569,10 @@ class KCLUtilities(bpy.types.Panel):
             layout.prop(mytool, "kclVariant10Index")
         if(mytool.kcl_masterType == "T12"):
             layout.prop(mytool, "kclVariant12Index")
+        if(mytool.kcl_masterType == "T18"):
+            layout.prop(mytool, "kclVariantT18Circuits")
+            t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
+            layout.prop(mytool, t18variant)
         if(mytool.kcl_masterType in kcl_typeATypes):
             layout.prop(mytool, "kcl_shadow")
             layout.prop(mytool, "kcl_trickable")
@@ -452,6 +621,18 @@ class AREAUtilities(bpy.types.Panel):
              area_setting_column.prop(mytool, "kmp_areaIDK2")
         elif(mytool.kmp_areaEnumType == "A8" or mytool.kmp_areaEnumType == "A9"):
              area_setting_column.prop(mytool, "kmp_areaGroup")
+        elif(mytool.kmp_areaEnumType == "A10"):
+            area_setting_column.prop(mytool, "kmp_areaUseCOOB")
+            if(mytool.kmp_areaUseCOOB):
+                area_setting_column.prop(mytool, "kmp_areaCOOBVersion")
+                if(mytool.kmp_areaCOOBVersion == "kHacker"):
+                    area_setting_column.prop(mytool, "kmp_areakHackerMode")
+                    area_setting_column.prop(mytool, "kmp_areakHackerCheckpoint")
+                elif(mytool.kmp_areaCOOBVersion == "Riidefi"):
+                    area_setting_column.prop(mytool, "kmp_areaRiidefiP1")
+                    area_setting_column.prop(mytool, "kmp_areaRiidefiP2")
+                    area_setting_column.prop(mytool, "kmp_areaRiidefiInvert")
+
         
         if(bpy.context.object is not None):
             current_mode = bpy.context.object.mode
@@ -481,6 +662,10 @@ class apply_kcl_flag(bpy.types.Operator):
         if(hasattr(mytool, variantPropName)):
             z = getattr(mytool, variantPropName)
             z = '{:03b}'.format(int(z))
+        if(mytool.kcl_masterType == 'T18'):
+            t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
+            z = getattr(mytool,t18variant)
+            z = '{:03b}'.format(int(z))
         typeaflag = ''
         if(mytool.kcl_masterType in kcl_typeATypes):
             y = mytool.kcl_shadow
@@ -497,6 +682,7 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType in kcl_wallTypes):
             w = int(mytool.kcl_bounce == False)
             flag = str(w)+"0000000"+z+a+b
+
         finalFlag = '{:04x}'.format(int(flag,2))
         mytool.kclFinalFlag = finalFlag 
         properFlag = "_"+mytool.kcl_masterType[1:]+"_F"+finalFlag
@@ -523,6 +709,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 1)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
+    kclExportLowerDegree : bpy.props.IntProperty(name="Degree", default= 45)
     kclExportWeakWalls : bpy.props.BoolProperty(name="Weak Walls")
     kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
     kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
@@ -536,16 +723,16 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         bpy.ops.export_scene.obj(filepath=filepath, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
         wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
-        wkclt += ("WEAKWALLS, " if self.kclExportWeakWalls else "")
-        wkclt += ("DROPUNUSED, " if self.kclExportDropUnused else "")
-        wkclt += ("DROPFIXED, " if self.kclExportDropFixed else "")
-        wkclt += ("DROPINVALID, " if self.kclExportDropInvalid else "")
-        wkclt += ("RMFACEDOWN, " if self.kclExportRemoveFacedown else "")
-        wkclt += ("RMFACEUP, " if self.kclExportRemoveFaceup else "")
+        wkclt += ("WEAKWALLS," if self.kclExportWeakWalls else "")
+        wkclt += ("DROPUNUSED," if self.kclExportDropUnused else "")
+        wkclt += ("DROPFIXED," if self.kclExportDropFixed else "")
+        wkclt += ("DROPINVALID," if self.kclExportDropInvalid else "")
+        wkclt += ("RMFACEDOWN," if self.kclExportRemoveFacedown else "")
+        wkclt += ("RMFACEUP," if self.kclExportRemoveFaceup else "")
         
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
-        wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt"  "\"" if self.kclExportLowerWalls else "")
+        wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
         print(wkclt)
         os.system(wkclt)
 
@@ -569,7 +756,6 @@ class cursor_kmp (bpy.types.Operator):
         zpos = round(cursor_position[1] * scale * -1, 2) 
 
         position = str(xpos) + "\t" + str(ypos) + "\t" + str(zpos)
-        print(position)
         bpy.context.window_manager.clipboard = position
         return {'FINISHED'}
 
@@ -653,7 +839,6 @@ class kmp_area (bpy.types.Operator):
             data = data + dataValue
             x = x + 1
             
-            print(areaSet)
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
 
@@ -669,7 +854,7 @@ class kmp_c_cube_area (bpy.types.Operator):
         scale = mytool.scale
         cursor_position = context.scene.cursor.location
         
-        existingAreas = 0;
+        existingAreas = 0
         for obj in bpy.data.objects:
             if "area_" in obj.name.lower():
                 existingAreas = existingAreas + 1
@@ -705,12 +890,12 @@ class kmp_c_cylinder_area (bpy.types.Operator):
         scale = mytool.scale
         cursor_position = context.scene.cursor.location
         
-        existingAreas = 0;
+        existingAreas = 0
         for obj in bpy.data.objects:
             if "area_" in obj.name.lower():
                 existingAreas = existingAreas + 1
         
-        bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=cursor_position)
+        bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=cursor_position, vertices=128)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
@@ -762,9 +947,8 @@ class load_kmp(bpy.types.Operator, ImportHelper):
         sectionOffsets = []
         for i in range(int(sectionNumber)):
             sectionOffsets.append(struct.unpack(">I", file.read(4))[0])
-        print(sectionOffsets)
         
-        existingAreas = 0;
+        existingAreas = 0
         for obj in bpy.data.objects:
             if "area_" in obj.name.lower():
                 existingAreas = existingAreas + 1
@@ -794,7 +978,6 @@ class load_kmp(bpy.types.Operator, ImportHelper):
             areaRoute = struct.unpack('>b', file.read(1))[0]
             areaEnemy = struct.unpack('>b', file.read(1))[0]
             areaPadding = struct.unpack('>h', file.read(2))[0]
-            print(str(areaEnemy))
             areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
             areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
             areaScale = (areaXScale, areaZScale, areaYScale)
@@ -865,7 +1048,23 @@ def update_scene_handler(scene):
     #8 - Route
     #9 - Enemy Point
     
+
+
     if(loading == 0):
+        for i in range(len(scene.objects)):
+            for object in scene.objects:
+                if(hasattr(object, "name")):
+                    if(object.name.startswith("AREA_")):
+                        if(object.name[-4] == "."):
+                            existingAreas = -1 * i - 1
+                            for obj in bpy.data.objects:
+                                if "area_" in obj.name.lower():
+                                    existingAreas = existingAreas + 1
+                            name = object.name[:-4]
+                            properties = name.split("_")
+                            object.name = "AREA_" + str(existingAreas) + "_" + properties[2] + "_" + properties[3] + "_" + properties[4] + "_" + properties[5] + "_" + properties[6] + "_" + properties[7] + "_" + properties[8] + "_" + properties[9]
+
+
         if hasattr(activeObject, "name"):
             if(activeObject.name.startswith("AREA_")):
                 if(lastselection != activeObject):
@@ -875,7 +1074,6 @@ def update_scene_handler(scene):
                     mytool.kmp_areaPrority = int(properties[5])
                     mytool.kmp_areaSet1 = properties[6]
                     mytool.kmp_areaSet2 = properties[7]
-
                     mytool.kmp_areaEnemy = int(properties[9])
                     #Clear settings which are not in selected AREA type
                     mytool.kmp_areaID = int(float(properties[4]))
@@ -889,6 +1087,27 @@ def update_scene_handler(scene):
                     mytool.kmp_areaIDK1 = int(mytool.kmp_areaSet1)
                     mytool.kmp_areaIDK2 = int(mytool.kmp_areaSet2)
                     mytool.kmp_areaGroup = int(mytool.kmp_areaSet1)
+                    mytool.kmp_areaUseCOOB = False
+                    mytool.kmp_areaRiidefiP1 = 0
+                    mytool.kmp_areaRiidefiP2 = 0
+                    mytool.kmp_areaRiidefiInvert = False
+                    mytool.kmp_areakHackerMode = "0"
+                    mytool.kmp_areakHackerCheckpoint = 0
+                    if(mytool.kmp_areaEnumType == "A10"):
+                        if(mytool.kmp_areaRoute == "1" or mytool.kmp_areaSet1 is not "0" or mytool.kmp_areaSet2 is not "0"):
+                            mytool.kmp_areaUseCOOB = True
+                        mytool.kmp_areaCOOBVersion = "kHacker" if mytool.kmp_areaRoute == 1 else "Riidefi"
+                        if(mytool.kmp_areaCOOBVersion == "kHacker"):
+                            mytool.kmp_areakHackerMode = mytool.kmp_areaSet1
+                            mytool.kmp_areakHackerCheckpoint = int(mytool.kmp_areaSet2)
+                        mytool.kmp_areaRiidefiInvert = int(mytool.kmp_areaSet1) > int(mytool.kmp_areaSet2)
+                        if(mytool.kmp_areaRiidefiInvert):
+                            mytool.kmp_areaRiidefiP1 = int(mytool.kmp_areaSet2)
+                            mytool.kmp_areaRiidefiP2 = int(mytool.kmp_areaSet1)
+                        else:
+                            mytool.kmp_areaRiidefiP1 = int(mytool.kmp_areaSet1)
+                            mytool.kmp_areaRiidefiP2 = int(mytool.kmp_areaSet2)
+
                 
 
             
