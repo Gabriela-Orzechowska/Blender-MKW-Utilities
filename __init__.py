@@ -676,7 +676,7 @@ class apply_kcl_flag(bpy.types.Operator):
         b = '{:04b}'.format(int(mytool.kcl_masterType[2],16))
         flag = typeaflag+z+a+b
         if(mytool.kcl_masterType == 'T10'):
-            flag = '{:08b}'.format(mytool.kclVariant10Index)+a+b
+            flag = '{:08b}'.format(mytool.kclVariant10Index)+z+a+b
         if(mytool.kcl_masterType == 'T12'):
             flag = '{:08b}'.format(mytool.kclVariant12Index)+a+b
         if(mytool.kcl_masterType in kcl_wallTypes):
