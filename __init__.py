@@ -881,15 +881,16 @@ def export_autodesk_dae_button(self, context):
     
 def join_duplicate_objects(main_object, duplicate_object):
     bpy.ops.object.select_all(action='DESELECT')
-    obj1 = bpy.data.objects[duplicate_object]
-    obj2 = bpy.data.objects[main_object]
-    if(obj1.type != 'MESH' and obj2.type != 'MESH'):
-        return
-    bpy.context.view_layer.objects.active = obj2
-    obj2.select_set(True)
-    obj1.select_set(True)
-    bpy.ops.object.join() 
-    bpy.ops.object.select_all(action='DESELECT')
+    obj1 = bpy.data.objects.get(duplicate_object)
+    obj2 = bpy.data.objects.get(main_object)
+    if(obj1 and obj2):
+        if(obj1.type != 'MESH' and obj2.type != 'MESH'):
+            return
+        bpy.context.view_layer.objects.active = obj2
+        obj2.select_set(True)
+        obj1.select_set(True)
+        bpy.ops.object.join() 
+        bpy.ops.object.select_all(action='DESELECT')
 
 def get_duplicated_names(original_name):
     common_name = original_name
@@ -918,15 +919,18 @@ class merge_duplicate_objects(bpy.types.Operator):
     def execute(self, context):
         i = 0
         bpy.ops.object.select_all(action='DESELECT')
-        while i < len(bpy.data.objects):
-            obj = bpy.data.objects[i]
-            objName = obj.name
+        objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
+		
+        while i < len(objects):
+            objName = objects[i]
             duplicate_names = get_duplicated_names(objName)
             for name in duplicate_names:
                 join_duplicate_objects(objName, name)
             if(objName[-3:].isnumeric() and objName[-4] == "."):
-                obj.name = objName[:-4]
-                obj.data.name = objName[:-4]
+                obj1 = bpy.data.objects.get(objName)
+                if(obj1):
+                    obj1.name = objName[:-4]
+                    obj1.data.name = objName[:-4]
             i=i+1
         return {'FINISHED'}
 
