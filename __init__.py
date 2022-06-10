@@ -14,7 +14,10 @@ import bpy
 import math
 import random
 import struct 
+import requests
+import webbrowser
 from bpy_extras.io_utils import ImportHelper, ExportHelper
+from bpy.app.handlers import persistent
 
 
 lastselection = []
@@ -529,12 +532,72 @@ class MyProperties(bpy.types.PropertyGroup):
 
     kclFinalFlag : bpy.props.StringProperty(name = "Flag")                                                            
 #endregion
+#region kcl_settings
+    kcl_applyMaterial : bpy.props.EnumProperty(name = "Material", items=[("0", "Random color", ''),
+                                                                        ("1", "Keep original", '')])
+    kcl_applyName : bpy.props.EnumProperty(name = "Name", items=[("0", "Flag only", ''),
+                                                                    ("1", "Add type label", ''),
+                                                                    ("2", "Add type and variant label", ''),
+                                                                    ("3", "Add to original", '')])
+#endregion
+
+labelDict = {
+    "T00": "ROAD",
+    "T01": "SLIPPERY1",
+    "T02": "WEAK_OFFROAD",
+    "T03": "OFFROAD",
+    "T04": "HEAVY_OFFROAD",
+    "T05": "SLIPPERY2",
+    "T06": "BOOST_PANEL",
+    "T07": "BOOST_RAMP",
+    "T08": "JUMP_PAD",
+    "T09": "ITEM_ROAD",
+    "T0A": "SOLID_FALL",
+    "T0B": "MOVING_ROAD",
+    "T0C": "WALL",
+    "T0D": "INVISIBLE_WALL",
+    "T0E": "ITEM_WALL",
+    "T0F": "WALL_3",
+    "T10": "FALL_BOUNDARY",
+    "T11": "CANNON",
+    "T12": "FORCE_RECALCULATION",
+    "T13": "HALFPIPE",
+    "T14": "WALL_4",
+    "T15": "MOVING_ROAD",
+    "T16": "STICKY_ROAD",
+    "T17": "ROAD",
+    "T18": "SOUND_TRIGGER",
+    "T19": "WEAK_WALL",
+    "T1A": "EFFECT_TRIGGER",
+    "T1B": "ITEM_STATE_MODIFIER",
+    "T1C": "HALFPIPE_WALL",
+    "T1D": "MOVING_ROAD",
+    "T1E": "SPECIAL_WALL",
+    "T1F": "WALL_5"
+    
+    
+
+}
+
+current_version = "v0.1.4"
+latest_version = "v0.1.4"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
-kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F"]
+kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
+
+class openGithub(bpy.types.Operator):
+    bl_idname = "open.download"
+    bl_label = "Download from GitHub"
+
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        webbrowser.get().open('http://www.github.com/Gabriela-Orzechowska/Blender-KMP-Utilities/releases/latest')
+        return {'FINISHED'}
 
 class KMPUtilities(bpy.types.Panel):
-    bl_label = "KMP Utilities"
+    global latest_version
+    bl_label = "Main Utilities"
     bl_idname = "_PT_KMP_"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -544,11 +607,32 @@ class KMPUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
+        if(latest_version != current_version):
+            newVersionLayout = layout.column()
+            newVersionLayout.label(text="New version available!: " + latest_version)
+            newVersionLayout.operator("open.download")
+            newVersionLayout.label(text="")
+        
         layout.prop(mytool, "scale")
         layout.operator("kmpc.load")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
-        
+        layout.operator("mkw.objectmerge")
+
+class KCLSettings(bpy.types.Panel):
+    bl_label = "KCL Settings"
+    bl_idname = "_PT_KCL_SET_"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+    
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        mytool = scene.kmpt
+        layout.prop(mytool, "kcl_applyMaterial")
+        layout.prop(mytool, "kcl_applyName")
+
 class KCLUtilities(bpy.types.Panel):
     global finalFlag
     global kcl_typeATypes
@@ -577,6 +661,9 @@ class KCLUtilities(bpy.types.Panel):
             layout.prop(mytool, "kcl_shadow")
             layout.prop(mytool, "kcl_trickable")
             layout.prop(mytool, "kcl_drivable")
+        if(mytool.kcl_masterType == "T19"):
+            layout.label(text = "Nintendo  uses  this  type  without")    
+            layout.label(text = "'Bounce' flag.")  
         if(mytool.kcl_masterType in kcl_wallTypes):
             layout.prop(mytool, "kcl_bounce") 
         
@@ -612,6 +699,7 @@ class AREAUtilities(bpy.types.Panel):
             area_setting_column.prop(mytool, "kmp_areaPostEffectEntry")
         elif(mytool.kmp_areaEnumType == "A3"):
             area_setting_column.prop(mytool, "kmp_areaRoute")
+            area_setting_column.label(text="Variant 0x0002 Settings ")
             area_setting_column.prop(mytool, "kmp_areaMovingRouteSet1")
             area_setting_column.prop(mytool, "kmp_areaMovingRouteSet2")
         elif(mytool.kmp_areaEnumType == "A4"):
@@ -652,16 +740,17 @@ class apply_kcl_flag(bpy.types.Operator):
     global kcl_typeATypes, finalFlag, kcl_wallTypes, properFlag
     bl_idname = "kclc.applyflag"
     bl_label = "Apply Flag"
+    bl_options = {'UNDO'}
     bl_description = "Apply current flag"
     
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
         variantPropName = "kclVariant" + mytool.kcl_masterType
-        z = ''
+        z = '000'
         if(hasattr(mytool, variantPropName)):
             z = getattr(mytool, variantPropName)
-            z = '{:03b}'.format(int(z))
+            z = '{:03b}'.format(int(z)).zfill(3)
         if(mytool.kcl_masterType == 'T18'):
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             z = getattr(mytool,t18variant)
@@ -682,21 +771,40 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType in kcl_wallTypes):
             w = int(mytool.kcl_bounce == False)
             flag = str(w)+"0000000"+z+a+b
+            print(flag)
 
         finalFlag = '{:04x}'.format(int(flag,2))
         mytool.kclFinalFlag = finalFlag 
         properFlag = "_"+mytool.kcl_masterType[1:]+"_F"+finalFlag
         properFlag = properFlag.upper()
         activeObject = context.active_object
-        if(activeObject.type == "MESH"):
-            context.active_object.data.materials.clear()
-            mat = bpy.data.materials.get(properFlag)
-            if mat is None:
-                mat = bpy.data.materials.new(name=properFlag)
-                mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
-            context.active_object.data.materials.append(mat)
-            activeObject.name = properFlag
-            activeObject.data.name = properFlag
+        if(activeObject.type != "MESH"):
+            self.report({'WARNING', "Selected object is not a mesh."})
+            return {'FINISHED'}
+        if(mytool.kcl_applyName == "1"):   
+            properFlag = labelDict[mytool.kcl_masterType] + properFlag
+        elif(mytool.kcl_applyName == "2"):   
+            variant = '{:03x}'.format(int(flag[:-5],2)).upper()
+            properFlag = labelDict[mytool.kcl_masterType] + "_"+ variant + properFlag
+        elif(mytool.kcl_applyName == "3"):  
+            objName = activeObject.name
+            if(objName[-3:].isnumeric() and objName[-4] == "."):
+                objName = objName[:-4]
+            if(checkFlagInName(objName)):
+                objName = objName[:-9]
+            if(objName[-3:].isnumeric() and objName[-4] == "."):
+                objName = objName[:-4]
+            properFlag = objName + properFlag
+        activeObject.name = properFlag
+        activeObject.data.name = properFlag
+        if(mytool.kcl_applyMaterial == "1"):
+            return {'FINISHED'}
+        context.active_object.data.materials.clear()
+        mat = bpy.data.materials.get(properFlag)
+        if mat is None:
+            mat = bpy.data.materials.new(name=properFlag)
+            mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+        context.active_object.data.materials.append(mat)
 
 
         return {'FINISHED'}
@@ -704,8 +812,10 @@ class apply_kcl_flag(bpy.types.Operator):
 class export_kcl_file(bpy.types.Operator, ExportHelper):
     bl_idname = "kclc.export"
     bl_label = "Export KCL"
+    bl_options = {'UNDO'}
     filename_ext = ".kcl"
 
+    kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 1)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
@@ -720,7 +830,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         filepath = self.filepath
 
-        bpy.ops.export_scene.obj(filepath=filepath, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
+        bpy.ops.export_scene.obj(filepath=filepath, use_selection=self.kclExportSelection, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
         wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
         wkclt += ("WEAKWALLS," if self.kclExportWeakWalls else "")
@@ -738,8 +848,87 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
         return {'FINISHED'}
 
+class export_autodesk_dae(bpy.types.Operator, ExportHelper):
+    bl_idname = "export.autodesk_dae"
+    bl_label = "Export Autodesk DAE"    
+    bl_description = "Export BrawlBox/BrawlCrate friendly Collada (.dae) file"
+    filename_ext = ".dae"
+    daeExportPathMode : bpy.props.EnumProperty(name="Path Mode", items=[('AUTO', "Auto", ""),
+                                                                        ('COPY', "Copy", "")])
+    daeExportSelection : bpy.props.BoolProperty(name="Selection only", default = False)
+    daeExportCollection : bpy.props.BoolProperty(name="Active collection", default = False)
+    daeExportScale : bpy.props.FloatProperty(name="Scale", default = 1)
+
+
+
+    def execute(self, context):
+        filepath = self.filepath
+        os.system("del \"" + filepath[:-4]+"-pomidor.dae\"")
+        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH'}, use_mesh_modifiers=True)
+        script_file = os.path.normpath(__file__)
+        directory = os.path.dirname(script_file)
+        converterDir = "\"" + directory + "\\bin\\FbxConverter.exe" + "\""
+        command = converterDir + " \"" + filepath + "\" \"" + filepath[:-4]+"-pomidor.dae" + "\" /sffFBX /dffCOLLADA /v"
+        os.system("\"" + command + "\"")
+        os.system("del \"" + filepath+"\"")
+        filename = filepath.split("\\")[-1]
+        os.system("rename \"" + filepath[:-4]+"-pomidor.dae\" \"" + filename + "\"")
+
+        return {'FINISHED'}
+
+def export_autodesk_dae_button(self, context):
+    self.layout.operator("export.autodesk_dae", text="Autodesk Collada (.dae)")
     
-    
+def join_duplicate_objects(main_object, duplicate_object):
+    bpy.ops.object.select_all(action='DESELECT')
+    obj1 = bpy.data.objects[duplicate_object]
+    obj2 = bpy.data.objects[main_object]
+    if(obj1.type != 'MESH' and obj2.type != 'MESH'):
+        return
+    bpy.context.view_layer.objects.active = obj2
+    obj2.select_set(True)
+    obj1.select_set(True)
+    bpy.ops.object.join() 
+    bpy.ops.object.select_all(action='DESELECT')
+
+def get_duplicated_names(original_name):
+    common_name = original_name
+
+    if(common_name[-3:].isnumeric()):
+        if(common_name[-4] == '.'):
+            common_name = common_name[:-4]
+
+    duplicated_names = []
+    objects=[ob for ob in bpy.context.view_layer.objects if ob.visible_get()]
+    for obj in objects:
+        if(obj.name is not original_name and obj.type == 'MESH'):
+            
+            name = obj.name
+            if(name[-3:].isnumeric() and name[-4] =='.'):
+                name = name[:-4]
+            if(name == common_name):
+                duplicated_names.append(obj.name)
+    return duplicated_names
+
+class merge_duplicate_objects(bpy.types.Operator):
+    bl_idname = "mkw.objectmerge"
+    bl_label = "Merge duplicate objects"
+    bl_description = "Joins objects with duplicate names (*.001, *.002 etc.)"
+    bl_options = {'UNDO'}
+    def execute(self, context):
+        i = 0
+        bpy.ops.object.select_all(action='DESELECT')
+        while i < len(bpy.data.objects):
+            obj = bpy.data.objects[i]
+            objName = obj.name
+            duplicate_names = get_duplicated_names(objName)
+            for name in duplicate_names:
+                join_duplicate_objects(objName, name)
+            if(objName[-3:].isnumeric() and objName[-4] == "."):
+                obj.name = objName[:-4]
+                obj.data.name = objName[:-4]
+            i=i+1
+        return {'FINISHED'}
 
 class cursor_kmp (bpy.types.Operator):
     bl_idname = "kmpc.cursor"
@@ -847,7 +1036,7 @@ class kmp_c_cube_area (bpy.types.Operator):
     bl_idname = "kmpc.c_cube_area"
     bl_label = "Create cube AREA Model"
     bl_description = "Creates a cubic AREA Model is proper scale and origin (Move it only in OBJECT mode)"
-    
+    bl_options = {'UNDO'}   
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
@@ -866,6 +1055,7 @@ class kmp_c_cube_area (bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT')
         activeObject = bpy.context.active_object
         activeObject.name = "AREA_" + str(existingAreas) + "_0_0_0_0_0_0_-1_0"
+        updateArea(self, context)
         name = activeObject.name
         properties = name.split("_")
         mytool.kmp_areaEnumType = "A" + properties[3]
@@ -883,7 +1073,7 @@ class kmp_c_cylinder_area (bpy.types.Operator):
     bl_idname = "kmpc.c_cylinder_area"
     bl_label = "Create cylinder AREA Model"
     bl_description = "Creates a cylindrical AREA Model is proper scale and origin (Move it only in OBJECT mode)"
-    
+    bl_options = {'UNDO'}    
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
@@ -902,6 +1092,7 @@ class kmp_c_cylinder_area (bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT')
         activeObject = bpy.context.active_object
         activeObject.name = "AREA_" + str(existingAreas) + "_1_0_0_0_0_0_-1_0"
+        updateArea(self, context)
         name = activeObject.name
         properties = name.split("_")
         mytool.kmp_areaEnumType = "A" + properties[3]
@@ -1023,6 +1214,23 @@ matColors = [(1.0, 0.262251, 0, 0.6),
             (0.445201, 0.8, 0.296138, 0.6), 
             (0.806953, 0.006, 0.016807, 0.6)]
 
+def checkFlagInName(name):
+    try:
+        i = int(name[-4:],16)
+    except ValueError:
+        return False
+    if(name[-6] != "_"):
+        return False
+    if(name[-5] != "F"):
+        return False
+    try:
+        i = int(name[-8:-7],16)
+    except ValueError:
+        return False
+    if(name[-9] != "_"):
+        return False
+    return True
+
 
 def checkMaterial():
     for i in range(11):   
@@ -1032,8 +1240,10 @@ def checkMaterial():
             mat = bpy.data.materials.new(matName)
             mat.diffuse_color = matColors[i]
             mat.blend_method = 'BLEND' 
-
+            
+@persistent
 def update_scene_handler(scene):
+
     global lastselection, setting1users, setting2users
     mytool = scene.kmpt
     activeObject = bpy.context.active_object
@@ -1113,20 +1323,43 @@ def update_scene_handler(scene):
             
     lastselection = activeObject
 
-classes = [MyProperties, KMPUtilities, KCLUtilities, AREAUtilities, apply_kcl_flag, cursor_kmp, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file]
+
+
+@persistent
+def load_file_handler(dummy):
+    global current_version, latest_version
+    response = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases/latest")
+    latest_version = response.json()["name"]
+    if(latest_version == current_version):
+        return
+    ShowMessageBox("There's a new version available: " + latest_version, "New version available!")
+
+def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
+
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
+
+classes = [MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, apply_kcl_flag, cursor_kmp, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
  
  
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
     bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
+    bpy.app.handlers.load_post.append(load_file_handler)
+    bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
     bpy.types.Scene.kmpt = bpy.props.PointerProperty(type= MyProperties)
  
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    bpy.app.handlers.depsgraph_update_post.remove(update_scene_handler)
+    bpy.app.handlers.depsgraph_update_post.clear()
+    bpy.app.handlers.load_post.clear()
+    bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
     del bpy.types.Scene.kmpt
  
  
