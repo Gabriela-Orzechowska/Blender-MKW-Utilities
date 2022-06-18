@@ -615,6 +615,7 @@ class KMPUtilities(bpy.types.Panel):
         
         layout.prop(mytool, "scale")
         layout.operator("kmpc.load")
+        layout.operator("kclc.load")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
         layout.operator("mkw.objectmerge")
@@ -732,6 +733,56 @@ class AREAUtilities(bpy.types.Panel):
         else:
             area_create_column.enabled = True
         
+def replace_material(bad_mat, good_mat):
+    bad_mat.user_remap(good_mat)
+    bpy.data.materials.remove(bad_mat)
+    
+    
+def get_duplicate_materials(og_material):
+    
+    common_name = og_material.name
+    
+    if common_name[-3:].isnumeric():
+        common_name = common_name[:-4]
+    
+    duplicate_materials = []
+    
+    for material in bpy.data.materials:
+        if material is not og_material:
+            name = material.name
+            if name[-3:].isnumeric() and name[-4] == ".":
+                name = name[:-4]
+            
+            if name == common_name:
+                duplicate_materials.append(material)
+    
+    text = "{} duplicate materials found"
+    
+    return duplicate_materials
+
+
+def remove_all_duplicate_materials():
+    i = 0
+    while i < len(bpy.data.materials):
+        
+        og_material = bpy.data.materials[i]
+        
+        
+        # get duplicate materials
+        duplicate_materials = get_duplicate_materials(og_material)
+        
+        # replace all duplicates
+        for duplicate_material in duplicate_materials:
+            replace_material(duplicate_material, og_material)
+        
+        # adjust name to no trailing numbers
+        if og_material.name[-3:].isnumeric() and og_material.name[-4] == ".":
+            og_material.name = og_material.name[:-4]
+            
+        i = i+1
+    
+
+
 
 #endregion
 finalFlag = ''
@@ -771,7 +822,6 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType in kcl_wallTypes):
             w = int(mytool.kcl_bounce == False)
             flag = str(w)+"0000000"+z+a+b
-            print(flag)
 
         finalFlag = '{:04x}'.format(int(flag,2))
         mytool.kclFinalFlag = finalFlag 
@@ -815,6 +865,10 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     bl_options = {'UNDO'}
     filename_ext = ".kcl"
 
+    filter_glob: bpy.props.StringProperty(
+        default='*.kcl',
+        options={'HIDDEN'}
+    )
     kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 1)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
@@ -843,9 +897,78 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
-        print(wkclt)
         os.system(wkclt)
 
+        return {'FINISHED'}
+
+class import_kcl_file(bpy.types.Operator, ImportHelper):
+    bl_idname = "kclc.load"
+    bl_label = "Load KCL file"       
+    filename_ext = '.kcl'
+    bl_description = "Loads KCL file"
+    
+    filter_glob: bpy.props.StringProperty(
+        default='*.kcl',
+        options={'HIDDEN'}
+    )
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+
+        filepath = self.filepath
+        os.system("wkclt cff \"" + filepath + "\" -o")
+        file = open(filepath[:-3]+"flag") 
+        flags = []
+        i = 0
+        n = 48
+        while(i in range(n)):
+            file.readline()
+            i += 1
+        a = True
+        while a:
+            line = file.readline()
+            line = line.replace("\t","")
+            line = line[:-48].strip()
+            flag = line.split("=")[0]
+            if(flag is not ''):
+                flags.append(flag)
+            if not line:
+                a = False
+        file.close()
+        os.system("del \""+filepath[:-3]+"flag\"")
+        os.system("wkclt decode \"" + filepath + "\" -o")
+        bpy.ops.import_scene.obj(filepath=filepath[:-3]+"obj")
+        os.system("del \""+filepath[:-3]+"obj\"")
+        os.system("del \""+filepath[:-3]+"mtl\"")
+        context.view_layer.objects.active = bpy.context.selected_objects[0]
+        objs = bpy.context.selected_objects
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.separate(type='MATERIAL')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        objs = bpy.context.selected_objects
+        remove_all_duplicate_materials()
+        for obj in objs:
+            materialName = obj.material_slots[0].name
+            i = 0
+            materialName = materialName.split("_")
+            v = int(materialName[1])
+            for f in flags:
+                if(f.startswith(materialName[0].upper())):
+                    i += 1
+                    if(i == v):
+                        obj.name = f
+                        obj.data.name = f
+                        splitF = f.split("_")
+                        properFlag = "_" + splitF[1] + "_" + splitF[2]
+                        obj.data.materials.clear()
+                        mat = bpy.data.materials.get(properFlag)
+                        if mat is None:
+                            mat = bpy.data.materials.new(name=properFlag)
+                            mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+                        obj.data.materials.append(mat)
+
+        
         return {'FINISHED'}
 
 class export_autodesk_dae(bpy.types.Operator, ExportHelper):
@@ -1345,7 +1468,7 @@ def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
 
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
-classes = [MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, apply_kcl_flag, cursor_kmp, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
  
  
