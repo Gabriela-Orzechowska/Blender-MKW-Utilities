@@ -615,7 +615,6 @@ class KMPUtilities(bpy.types.Panel):
         
         layout.prop(mytool, "scale")
         layout.operator("kmpc.load")
-        layout.operator("kclc.load")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
         layout.operator("mkw.objectmerge")
@@ -646,7 +645,8 @@ class KCLUtilities(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        mytool = scene.kmpt
+        mytool = scene.kmpt   
+        layout.operator("kclc.load")
         layout.prop(mytool, "kcl_masterType")
         variantPropName = "kclVariant" + mytool.kcl_masterType
         layout.prop(mytool, variantPropName)
