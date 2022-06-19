@@ -579,8 +579,8 @@ labelDict = {
 
 }
 
-current_version = "v0.1.4"
-latest_version = "v0.1.4"
+current_version = "v0.1.5.-3"
+latest_version = "v0.1.5.-3"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -903,7 +903,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
 class import_kcl_file(bpy.types.Operator, ImportHelper):
     bl_idname = "kclc.load"
-    bl_label = "Load KCL file"       
+    bl_label = "Import KCL file"       
     filename_ext = '.kcl'
     bl_description = "Loads KCL file"
     
@@ -917,6 +917,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         scale = mytool.scale
 
         filepath = self.filepath
+        os.system("del \""+filepath[:-3]+"flag\"")
         os.system("wkclt cff \"" + filepath + "\" -o")
         file = open(filepath[:-3]+"flag") 
         flags = []
@@ -957,10 +958,12 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
                 if(f.startswith(materialName[0].upper())):
                     i += 1
                     if(i == v):
-                        obj.name = f
-                        obj.data.name = f
                         splitF = f.split("_")
                         properFlag = "_" + splitF[1] + "_" + splitF[2]
+                        label = labelDict["T"+splitF[1]]
+                        labelFlag = label+properFlag
+                        obj.name = labelFlag
+                        obj.data.name = labelFlag
                         obj.data.materials.clear()
                         mat = bpy.data.materials.get(properFlag)
                         if mat is None:
@@ -1059,7 +1062,7 @@ class merge_duplicate_objects(bpy.types.Operator):
 
 class cursor_kmp (bpy.types.Operator):
     bl_idname = "kmpc.cursor"
-    bl_label = "Position from 3D Cursor"
+    bl_label = "3D Cursor position to KMP Cloud"
     bl_description = "Converts current 3D Cursor position and puts into clipboard"
     
     def execute(self, context):
@@ -1077,7 +1080,7 @@ class cursor_kmp (bpy.types.Operator):
 
 class kmp_gobj (bpy.types.Operator):
     bl_idname = "kmpc.gobj"
-    bl_label = "GOBJ from Selected"
+    bl_label = "Selected to KMP Cloud GOBJ"
     bl_description = "Converts selected objects position and puts them into clipboard as GOBJ"
     
     def execute(self, context):
@@ -1107,7 +1110,7 @@ class kmp_gobj (bpy.types.Operator):
     
 class kmp_area (bpy.types.Operator):
     bl_idname = "kmpc.area"
-    bl_label = "AREA from Selected"
+    bl_label = "AREA to KMP Cloud"
     bl_description = "Converts selected objects position and puts them into clipboard as AREA"
     
     def execute(self, context):
@@ -1234,7 +1237,7 @@ class kmp_c_cylinder_area (bpy.types.Operator):
 loading = 0
 class load_kmp(bpy.types.Operator, ImportHelper):
     bl_idname = "kmpc.load"
-    bl_label = "Load KMP file"       
+    bl_label = "Import KMP AREAs"       
     filename_ext = '.kmp'
     bl_description = "Loads KMP file and imports AREAs with settings"
     
