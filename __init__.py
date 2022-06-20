@@ -580,8 +580,8 @@ labelDict = {
 
 }
 
-current_version = "v0.1.5.-3"
-latest_version = "v0.1.5.-3"
+current_version = "v0.1.5.-2"
+latest_version = "v0.1.5.-2"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
