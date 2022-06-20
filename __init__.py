@@ -615,7 +615,6 @@ class KMPUtilities(bpy.types.Panel):
             newVersionLayout.label(text="")
         
         layout.prop(mytool, "scale")
-        layout.operator("kmpc.load")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
         layout.operator("mkw.objectmerge")
@@ -683,6 +682,7 @@ class AREAUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
+        layout.operator("kmpc.load")
         layout.operator("kmpc.area")
         layout.label(text="Create AREA")
         area_create_column = layout.column()
@@ -848,13 +848,20 @@ class apply_kcl_flag(bpy.types.Operator):
             properFlag = objName + properFlag
         elif(mytool.kcl_applyName == "4"):  
             objName = activeObject.data.name
+            aobjName = activeObject.name
             if(objName[-3:].isnumeric() and objName[-4] == "."):
                 objName = objName[:-4]
             if(checkFlagInName(objName)):
                 objName = objName[:-9]
             if(objName[-3:].isnumeric() and objName[-4] == "."):
                 objName = objName[:-4]
-            properFlag = objName + properFlag
+            if(aobjName[-3:].isnumeric() and aobjName[-4] == "."):
+                aobjName = aobjName[:-4]
+            if(checkFlagInName(aobjName)):
+                aobjName = aobjName[:-9]
+            if(aobjName[-3:].isnumeric() and aobjName[-4] == "."):
+                aobjName = aobjName[:-4]
+            properFlag = aobjName + properFlag
         if(mytool.kcl_applyName is not "4"):
             activeObject.name = properFlag
         activeObject.data.name = properFlag
@@ -881,7 +888,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         options={'HIDDEN'}
     )
     kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
-    kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 1)
+    kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
     kclExportLowerDegree : bpy.props.IntProperty(name="Degree", default= 45)
@@ -889,8 +896,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
     kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
     kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
-    kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road", default=True)
-    kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls", default=True)
+    kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road")
+    kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls")
 
     def execute(self, context):
         filepath = self.filepath
