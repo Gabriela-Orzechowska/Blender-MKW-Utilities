@@ -538,7 +538,8 @@ class MyProperties(bpy.types.PropertyGroup):
     kcl_applyName : bpy.props.EnumProperty(name = "Name", items=[("0", "Flag only", ''),
                                                                     ("1", "Add type label", ''),
                                                                     ("2", "Add type and variant label", ''),
-                                                                    ("3", "Add to original", '')])
+                                                                    ("3", "Add to original", ''),
+                                                                    ("4", "Add to mesh name only",'')])
 #endregion
 
 labelDict = {
@@ -845,7 +846,17 @@ class apply_kcl_flag(bpy.types.Operator):
             if(objName[-3:].isnumeric() and objName[-4] == "."):
                 objName = objName[:-4]
             properFlag = objName + properFlag
-        activeObject.name = properFlag
+        elif(mytool.kcl_applyName == "4"):  
+            objName = activeObject.data.name
+            if(objName[-3:].isnumeric() and objName[-4] == "."):
+                objName = objName[:-4]
+            if(checkFlagInName(objName)):
+                objName = objName[:-9]
+            if(objName[-3:].isnumeric() and objName[-4] == "."):
+                objName = objName[:-4]
+            properFlag = objName + properFlag
+        if(mytool.kcl_applyName is not "4"):
+            activeObject.name = properFlag
         activeObject.data.name = properFlag
         if(mytool.kcl_applyMaterial == "1"):
             return {'FINISHED'}
@@ -896,7 +907,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
-        wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
+        if (self.kclExportLowerWalls):
+            wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
         os.system(wkclt)
 
         return {'FINISHED'}
@@ -1046,6 +1058,7 @@ class merge_duplicate_objects(bpy.types.Operator):
         i = 0
         bpy.ops.object.select_all(action='DESELECT')
         objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
+        meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get()]
 		
         while i < len(objects):
             objName = objects[i]
@@ -1057,7 +1070,29 @@ class merge_duplicate_objects(bpy.types.Operator):
                 if(obj1):
                     obj1.name = objName[:-4]
                     obj1.data.name = objName[:-4]
+            MeshName = meshes[i].name
+            if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
+                meshes[i].name = MeshName[:-4]
             i=i+1
+        i = 0
+        objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
+        meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get()]
+		
+        while i < len(objects):
+            objName = objects[i]
+            duplicate_names = get_duplicated_names(objName)
+            for name in duplicate_names:
+                join_duplicate_objects(objName, name)
+            if(objName[-3:].isnumeric() and objName[-4] == "."):
+                obj1 = bpy.data.objects.get(objName)
+                if(obj1):
+                    obj1.name = objName[:-4]
+                    obj1.data.name = objName[:-4]
+            MeshName = meshes[i].name
+            if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
+                meshes[i].name = MeshName[:-4]
+            i=i+1
+        
         return {'FINISHED'}
 
 class cursor_kmp (bpy.types.Operator):
