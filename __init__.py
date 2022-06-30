@@ -1,7 +1,7 @@
 bl_info = {
     "name" : "Mario Kart Wii Utilities",
     "author" : "Gabriela_",
-    "version" : (1, 0),
+    "version" : (1, 5),
     "blender" : (2, 82, 0),
     "location" : "View3d > Tool",
     "warning" : "",
@@ -580,8 +580,8 @@ labelDict = {
 
 }
 
-current_version = "v0.1.5.-2"
-latest_version = "v0.1.5.-2"
+current_version = "v0.1.5.-1,5"
+latest_version = "v0.1.5.-1,5"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -658,8 +658,9 @@ class KCLUtilities(bpy.types.Panel):
             layout.prop(mytool, "kclVariantT18Circuits")
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             layout.prop(mytool, t18variant)
-        if(mytool.kcl_masterType in kcl_typeATypes):
+        if(mytool.kcl_masterType in kcl_typeATypes or mytool.kcl_masterType == "T1A"):
             layout.prop(mytool, "kcl_shadow")
+        if(mytool.kcl_masterType in kcl_typeATypes):
             layout.prop(mytool, "kcl_trickable")
             layout.prop(mytool, "kcl_drivable")
         if(mytool.kcl_masterType == "T19"):
@@ -813,9 +814,15 @@ class apply_kcl_flag(bpy.types.Operator):
             y = '{:03b}'.format(int(y))
             w = "0" + str(int(mytool.kcl_drivable == False)) + str(int(mytool.kcl_trickable))
             typeaflag = w+"00"+y
+        if(mytool.kcl_masterType == "T1A"):
+            y = mytool.kcl_shadow
+            y = '{:03b}'.format(int(y))
+            typeaflag = y
+
         a = '{:01b}'.format(int(mytool.kcl_masterType[1],16))
         b = '{:04b}'.format(int(mytool.kcl_masterType[2],16))
         flag = typeaflag+z+a+b
+
         if(mytool.kcl_masterType == 'T10'):
             flag = '{:08b}'.format(mytool.kclVariant10Index)+z+a+b
         if(mytool.kcl_masterType == 'T12'):
@@ -998,6 +1005,10 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
     bl_label = "Export Autodesk DAE"    
     bl_description = "Export BrawlBox/BrawlCrate friendly Collada (.dae) file"
     filename_ext = ".dae"
+    filter_glob: bpy.props.StringProperty(
+        default='*.dae',
+        options={'HIDDEN'}
+    )
     daeExportPathMode : bpy.props.EnumProperty(name="Path Mode", items=[('AUTO', "Auto", ""),
                                                                         ('COPY', "Copy", "")])
     daeExportSelection : bpy.props.BoolProperty(name="Selection only", default = False)
