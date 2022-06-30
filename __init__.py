@@ -1020,7 +1020,7 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         filepath = self.filepath
         os.system("del \"" + filepath[:-4]+"-pomidor.dae\"")
-        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH'}, use_mesh_modifiers=True)
+        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode)
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         converterDir = "\"" + directory + "\\bin\\FbxConverter.exe" + "\""
@@ -1034,7 +1034,11 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
 
 def export_autodesk_dae_button(self, context):
     self.layout.operator("export.autodesk_dae", text="Autodesk Collada (.dae)")
-    
+def export_kcl_button(self, context):
+    self.layout.operator("kclc.export", text="KCL")
+def import_kcl_button(self, context):
+    self.layout.operator("kclc.load", text="KCL")
+
 def join_duplicate_objects(main_object, duplicate_object):
     bpy.ops.object.select_all(action='DESELECT')
     obj1 = bpy.data.objects.get(duplicate_object)
@@ -1535,6 +1539,8 @@ def register():
     bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
     bpy.app.handlers.load_post.append(load_file_handler)
     bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
+    bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
+    bpy.types.TOPBAR_MT_file_import.append(import_kcl_button)
     bpy.types.Scene.kmpt = bpy.props.PointerProperty(type= MyProperties)
  
 def unregister():
@@ -1543,6 +1549,8 @@ def unregister():
     bpy.app.handlers.depsgraph_update_post.clear()
     bpy.app.handlers.load_post.clear()
     bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
+    bpy.types.TOPBAR_MT_file_export.remove(export_kcl_button)
+    bpy.types.TOPBAR_MT_file_import.remove(import_kcl_button)
     del bpy.types.Scene.kmpt
  
  
