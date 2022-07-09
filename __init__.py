@@ -634,8 +634,8 @@ labelDict = {
 
 }
 
-current_version = "v0.1.5.-1,2(2)"
-latest_version = "v0.1.5.-1,2(2)"
+current_version = "v0.1.6"
+latest_version = "v0.1.6"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -801,7 +801,8 @@ class CAMEUtilities(bpy.types.Panel):
         mytool = scene.kmpt
         if(scene.frame_start is not 0 or scene.render.fps is not 60):
             layout.operator("came.setup")
-        layout.operator("came.create")
+        came_create_column = layout.column()
+        came_create_column.operator("came.create")
         layout.operator("kmpt.came")
         #layout.prop(mytool, "kmp_cameEnumType")
         layout.prop(mytool, "kmp_cameCustomId")
@@ -809,7 +810,27 @@ class CAMEUtilities(bpy.types.Panel):
         layout.prop(mytool, "kmp_cameRoute")
         layout.prop(mytool, "kmp_cameGoToNext")
         layout.prop(mytool, "kmp_cameStop")
-        layout.label(text="Route Export")
+
+        if(bpy.context.object is not None):
+            current_mode = bpy.context.object.mode
+        else:
+            current_mode = 'OBJECT'
+        
+        if(current_mode != 'OBJECT'):
+            came_create_column.enabled = False
+        else:
+            came_create_column.enabled = True
+
+class RouteUtilities(bpy.types.Panel):
+    bl_label = "Route Utilities"
+    bl_idname = "MKW_PT_Route"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        mytool = scene.kmpt
         layout.operator("came.route")
         layout.prop(mytool, "kmp_cameRes")
         layout.operator("came.smoothroute")
@@ -831,7 +852,7 @@ class MaterialUtilities(bpy.types.Panel):
 class set_alpha_blend(bpy.types.Operator):
     bl_idname = "kmpt.blend"
     bl_label = "Add Alpha Blend"
-    bl_description = ""
+    bl_description = "Add Alpha Node from Image Texture and set Alpha mode to Blend"
     bl_options = {'UNDO'}
     def execute(self, context):
         selected = bpy.context.selected_objects
@@ -849,7 +870,7 @@ class set_alpha_blend(bpy.types.Operator):
 class set_alpha_clip(bpy.types.Operator):
     bl_idname = "kmpt.clip"
     bl_label = "Add Alpha Clip"
-    bl_description = ""
+    bl_description = "Add Alpha Node from Image Texture and set Alpha mode to Clip"
     bl_options = {'UNDO'}
     def execute(self, context):
         selected = bpy.context.selected_objects
@@ -867,7 +888,7 @@ class set_alpha_clip(bpy.types.Operator):
 class remove_specular_metalic(bpy.types.Operator):
     bl_idname = "kmpt.metalic"
     bl_label = "Remove Specular and Metalic"
-    bl_description = ""
+    bl_description = "Remove unwanted shininess from materials"
     bl_options = {'UNDO'}
     def execute(self, context):
         selected = bpy.context.selected_objects
@@ -885,7 +906,7 @@ class remove_specular_metalic(bpy.types.Operator):
 class kmp_came(bpy.types.Operator):
     bl_idname = "kmpt.came"
     bl_label = "CAME to KMP Cloud"
-    bl_description = ""
+    bl_description = "Converts selected objects data and puts them into clipboard as CAME"
     
     def execute(self, context):
         data = ""
@@ -921,16 +942,16 @@ class kmp_came(bpy.types.Operator):
                                     fov = round(fov * 9 / 16, 0)
                                     fovs.append(fov)
                         if(fovkeyframes[0] > 1):
-                            self.report({"WARNING"}, "First FOV keyframe needs to be at frame 0")
+                            self.report({"WARNING"}, "Camera {0}: First FOV keyframe needs to be at frame 0".format(properties[1]))
                             return {'CANCELLED'}
                         if(len(fovkeyframes) > 2):
-                            self.report({"WARNING"}, "You can not have more that 2 FOV keyframes")
+                            self.report({"WARNING"}, "Camera {0}: You can not have more that 2 FOV keyframes".format(properties[1]))
                             return {'CANCELLED'}
                     else:
                         cameraName = object.data.name
                         fov = bpy.data.cameras[cameraName].angle
                         fov = fov * 180 / 3.1415
-                        fov = round(fov * 9 / 16, 0)
+                        fov = round(fov * 9.0 / 16.0, 0)
                         fovs.append(fov)
                         fovs.append(fov)
                         fovkeyframes.append(0)
@@ -969,10 +990,10 @@ class kmp_came(bpy.types.Operator):
                                     position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                                     vpposs.append(position)
                         if(vpkeyframes[0] > 1):
-                            self.report({"WARNING"}, "First View Point keyframe needs to be at frame 0")
+                            self.report({"WARNING"}, "Camera {0}: First View Point keyframe needs to be at frame 0".format(properties[1]))
                             return {'CANCELLED'}
                         if(len(vpkeyframes) > 2):
-                            self.report({"WARNING"}, "You can not have more that 2 View Point keyframes")
+                            self.report({"WARNING"}, "Camera {0}: You can not have more that 2 View Point keyframes".format(properties[1]))
                             return {'CANCELLED'}
                     else:
                         loc = viewpoint.location
@@ -1031,7 +1052,7 @@ class kmp_came(bpy.types.Operator):
 class keyframes_to_route(bpy.types.Operator):
     bl_idname = "came.route"
     bl_label = "Keyframes to KMP Cloud Route"
-    bl_description = ""
+    bl_description = "Converts active object's keyframes and puts them into clipboard as Route Points"
     
     def execute(self, context):
         scene = context.scene
@@ -1087,7 +1108,7 @@ class keyframes_to_route(bpy.types.Operator):
 class timeline_to_route(bpy.types.Operator):
     bl_idname = "came.smoothroute"
     bl_label = "Timeline to KMP Cloud Route"
-    bl_description = ""
+    bl_description = "Converts active object's movement and puts them into clipboard as Route Points"
     
     def execute(self, context):
         scene = context.scene
@@ -1142,7 +1163,7 @@ class timeline_to_route(bpy.types.Operator):
 class create_camera(bpy.types.Operator):
     bl_idname = "came.create"
     bl_label = "Create Camera"
-    bl_description = ""
+    bl_description = "Creates Camera objects with viewpoint"
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
@@ -1156,6 +1177,7 @@ class create_camera(bpy.types.Operator):
                 existingCames += 1
                 print(existingCames)
         bpy.ops.mesh.primitive_uv_sphere_add(radius=scale/63.5,location=cursor_position)
+        bpy.ops.object.mode_set(mode='OBJECT')
         name="CAMEVP_"+str(existingCames)
         vp = bpy.context.object
         bpy.context.object.name = name
@@ -1176,7 +1198,7 @@ class create_camera(bpy.types.Operator):
 class scene_setup(bpy.types.Operator):
     bl_idname = "came.setup"
     bl_label = "Setup Scene"
-    bl_description = ""
+    bl_description = "Setups timeline data"
     bl_options = {'UNDO'}
     def execute(self, context):
         scene = context.scene
@@ -1665,7 +1687,6 @@ class kmp_area (bpy.types.Operator):
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
 
-
 class kmp_c_cube_area (bpy.types.Operator):
     bl_idname = "kmpc.c_cube_area"
     bl_label = "Create cube AREA Model"
@@ -1701,7 +1722,6 @@ class kmp_c_cube_area (bpy.types.Operator):
         mytool.kmp_areaEnemy = int(properties[9])
           
         return {'FINISHED'}
-
 
 class kmp_c_cylinder_area (bpy.types.Operator):
     bl_idname = "kmpc.c_cylinder_area"
@@ -1865,7 +1885,6 @@ def checkFlagInName(name):
         return False
     return True
 
-
 def checkMaterial():
     for i in range(11):   
         matName = "kmpc.area.A" + str(i)
@@ -1875,7 +1894,6 @@ def checkMaterial():
             mat.diffuse_color = matColors[i]
             mat.blend_method = 'BLEND' 
             
-
 oldFrameCount = 250
 @persistent
 def update_scene_handler(scene):
@@ -2094,7 +2112,7 @@ class BadPluginInstall(bpy.types.Panel):
         )
 
 
-classes = [MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, CAMEUtilities, MaterialUtilities, scene_setup, keyframes_to_route, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
  
  
