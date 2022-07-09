@@ -1094,7 +1094,7 @@ class keyframes_to_route(bpy.types.Operator):
                         self.report({'WARNING'}, "First Keyframe should be at frame 0")
                         return {'CANCELLED'}
                     keyframes.append(f)
-                    scene.frame_set(f)
+                    scene.frame_set(int(f))
                     loc = activeObject.location
                     position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                     locations.append(position)
