@@ -636,6 +636,7 @@ labelDict = {
 
 current_version = "v0.1.6"
 latest_version = "v0.1.6"
+prerelease_version = "v0.1.6"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -647,11 +648,18 @@ class openGithub(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
-        webbrowser.get().open('http://www.github.com/Gabriela-Orzechowska/Blender-KMP-Utilities/releases/latest')
+        if(get_prefs(context).prerelease_bool):
+            responseVersions = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases")
+            prerelease = responseVersions.json()[0]["url"]
+            responseVersions = requests.get(prerelease)
+            prerelease_version = responseVersions.json()["tag_name"]
+            webbrowser.get().open('https://github.com/Gabriela-Orzechowska/Blender-MKW-Utilities/releases/tag/{0}'.format(prerelease_version))
+        else:
+            webbrowser.get().open('http://www.github.com/Gabriela-Orzechowska/Blender-KMP-Utilities/releases/latest')
         return {'FINISHED'}
 
 class KMPUtilities(bpy.types.Panel):
-    global latest_version
+    global latest_version, prerelease_version, current_version
     bl_label = "Main Utilities"
     bl_idname = "MKW_PT_Kmp"
     bl_space_type = "VIEW_3D"
@@ -662,12 +670,17 @@ class KMPUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
-        if(latest_version != current_version):
-            newVersionLayout = layout.column()
-            newVersionLayout.label(text="New version available!: " + latest_version)
+        newVersionLayout = layout.column()
+        updateText = "New version available!: {0}"
+        if(get_prefs(context).prerelease_bool):
+            if(prerelease_version != current_version):
+                newVersionLayout.label(text=updateText.format(prerelease_version))
+                newVersionLayout.operator("open.download")
+                newVersionLayout.label(text="")
+        elif(latest_version != current_version):
+            newVersionLayout.label(text=updateText.format(latest_version))
             newVersionLayout.operator("open.download")
-            newVersionLayout.label(text="")
-        
+            newVersionLayout.label(text="") 
         layout.prop(mytool, "scale")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
@@ -1045,7 +1058,6 @@ class kmp_came(bpy.types.Operator):
             frames = properties[5]
             dataValue = properties[1].zfill(2) + "\t" + properties[2].zfill(2) + "\t" + properties[3].zfill(2) + "\t00\t"+ properties[4].zfill(2) +"\t0000\t"+str(fovSpeed)+"\t"+str(vpSpeed)+"\t00\t00\t"+str(xpos)+"\t"+str(ypos)+"\t"+str(zpos)+"\t0\t0\t0\t"+str(int(fovs[0]))+"\t"+str(int(fovs[1]))+"\t"+str(vsxpos)+"\t"+str(vsypos)+"\t"+str(vszpos)+"\t"+str(vexpos)+"\t"+str(veypos)+"\t"+str(vezpos)+"\t"+str(frames)+"\n"
             data += dataValue
-            print(dataValue)
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
 
@@ -1073,14 +1085,20 @@ class keyframes_to_route(bpy.types.Operator):
         fcurves = activeObject.animation_data.action.fcurves
         for curve in fcurves:
             keyframePoints = curve.keyframe_points
+            i = 0
             for keyframe in keyframePoints:
+                
                 if(keyframe.co[0] not in keyframes):  
                     f = keyframe.co[0]
+                    if(i==0 and f!=0):
+                        self.report({'WARNING'}, "First Keyframe should be at frame 0")
+                        return {'CANCELLED'}
                     keyframes.append(f)
                     scene.frame_set(f)
                     loc = activeObject.location
                     position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                     locations.append(position)
+                    i=i+1
                    
         speed = []
         vectors = []
@@ -1139,13 +1157,9 @@ class timeline_to_route(bpy.types.Operator):
         a = len(keyframes)
         for i in range(a):
             vectors.append(Vector(locations[i]))
-            print(vectors[i])
         for i in range(a):
             if(i is not a-1):
                 sped = math.floor((vectors[i+1]- vectors[i]).length) / (keyframes[i+1] - keyframes[i])
-                print(sped)
-                print((vectors[i+1]- vectors[i]).length)
-                print(keyframes[i+1] - keyframes[i])
                 speed.append(sped)
         speed.append(0)
         data =""
@@ -1164,6 +1178,7 @@ class create_camera(bpy.types.Operator):
     bl_idname = "came.create"
     bl_label = "Create Camera"
     bl_description = "Creates Camera objects with viewpoint"
+    bl_options = {'UNDO'}
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
@@ -1172,13 +1187,26 @@ class create_camera(bpy.types.Operator):
         cursor_position = context.scene.cursor.location
         existingCames = 0
         bpy.ops.object.select_all(action='DESELECT')
+
         for obj in bpy.data.objects:
             if "came_" in obj.name.lower():
                 existingCames += 1
-                print(existingCames)
+        freeID = False
+
+        while freeID == False:
+            for obj in bpy.data.objects:
+                testName="came_"+str(existingCames)
+                if testName in obj.name.lower():
+                    existingCames+=1
+                    continue
+                else:
+                    freeID = True
+            freeID = True
+
         bpy.ops.mesh.primitive_uv_sphere_add(radius=scale/63.5,location=cursor_position)
         bpy.ops.object.mode_set(mode='OBJECT')
         name="CAMEVP_"+str(existingCames)
+        mytool.kmp_cameCustomId = existingCames
         vp = bpy.context.object
         bpy.context.object.name = name
         bpy.ops.object.camera_add(align='VIEW', location=camePosition)
@@ -1189,6 +1217,7 @@ class create_camera(bpy.types.Operator):
         bpy.context.object.constraints["Track To"].target = vp
         name="CAME_"+str(existingCames)+"_5_0_0_"
         name+=str(scene.frame_end)
+        scene.camera = bpy.context.object
         bpy.context.object.name = name
         updateCame(self, context)
 
@@ -1308,7 +1337,7 @@ class apply_kcl_flag(bpy.types.Operator):
         properFlag = properFlag.upper()
         activeObject = context.active_object
         if(activeObject.type != "MESH"):
-            self.report({'WARNING', "Selected object is not a mesh."})
+            self.report({'WARNING'}, "Selected object is not a mesh.")
             return {'FINISHED'}
         if(mytool.kcl_applyName == "1"):   
             properFlag = labelDict[mytool.kcl_masterType] + properFlag
@@ -1958,7 +1987,6 @@ def update_scene_handler(scene):
                                 bpy.context.object.name = name
                                 vp = bpy.context.scene.objects["CAMEVP_" + str(existingCames)]
                                 object.constraints["Track To"].target = vp
-                                bpy.ops.object.select_all(action='DESELECT')
                                 object.select_set(True)
                                 vp.select_set(True)
                             else:
@@ -1967,7 +1995,6 @@ def update_scene_handler(scene):
                                 if(vp.select_get()):
                                     s=1
                                 object.constraints["Track To"].target = vp
-                                bpy.ops.object.select_all(action='DESELECT')
                                 object.select_set(True)
                                 if(s==1):
                                     vp.select_set(True)
@@ -2035,12 +2062,13 @@ def update_scene_handler(scene):
 
 @persistent
 def load_file_handler(dummy):
-    global current_version, latest_version
-    response = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases/latest")
-    latest_version = response.json()["name"]
-    if(latest_version == current_version):
-        return
-    ShowMessageBox("There's a new version available: " + latest_version, "New version available!")
+    global current_version, latest_version, prerelease_version
+    responseLatest = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases/latest")
+    responseVersions = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases")
+    prerelease = responseVersions.json()[0]["url"]
+    responseVersions = requests.get(prerelease)
+    prerelease_version = responseVersions.json()["tag_name"]
+    latest_version = responseLatest.json()["tag_name"]
 
 @persistent
 def frame_change_handler(scene):
@@ -2068,10 +2096,22 @@ def frame_change_handler(scene):
                     if(found == 0):
                         if(mytool.kmp_cameStop):
                             bpy.ops.screen.animation_cancel(restore_frame=False)
+            elif(mytool.kmp_cameStop):
+                bpy.ops.screen.animation_cancel(restore_frame=False)
 
-                
 
+def get_prefs(context):
+	return context.preferences.addons[__name__].preferences
+               
+class PreferenceProperty(bpy.types.AddonPreferences):
+	bl_idname = __name__
 
+	prerelease_bool = bpy.props.BoolProperty(name="Check for pre-release versions", default=False)
+
+	def draw(self, context):
+		layout = self.layout
+		box = layout.box()
+		box.row().prop(self, "prerelease_bool")
 
 import textwrap
 def _label_multiline(context, text, parent):
@@ -2112,7 +2152,7 @@ class BadPluginInstall(bpy.types.Panel):
         )
 
 
-classes = [MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [PreferenceProperty, MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
  
  
