@@ -1487,6 +1487,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         options={'HIDDEN'}
     )
     kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
+    kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
@@ -1500,6 +1501,23 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         filepath = self.filepath
+        selection = context.selected_objects
+        objectsToExport = []
+        if(self.kclExportSelection):
+            objectsToExport = selection
+        else:
+            objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
+        
+        if(self.kclExportFlagOnly):
+            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName(obj.name)]
+            objectsToExport = objectsToExport1
+
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in objectsToExport:
+            obj.select_set(True)
+
+        
+        
 
         bpy.ops.export_scene.obj(filepath=filepath, use_selection=self.kclExportSelection, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
@@ -1516,6 +1534,10 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         if (self.kclExportLowerWalls):
             wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
         os.system(wkclt)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in selection:
+            obj.select_set(True)
 
         return {'FINISHED'}
 
