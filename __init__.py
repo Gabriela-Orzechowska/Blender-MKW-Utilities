@@ -1,7 +1,7 @@
 bl_info = {
     "name" : "Mario Kart Wii Utilities",
     "author" : "Gabriela_",
-    "version" : (1, 5),
+    "version" : (1, 6),
     "blender" : (2, 82, 0),
     "location" : "View3d > Tool",
     "warning" : "",
@@ -267,7 +267,7 @@ class MyProperties(bpy.types.PropertyGroup):
     kcl_shadow : bpy.props.IntProperty(name= "Shadow", min=0, max=7, default= 0)
     kcl_trickable : bpy.props.BoolProperty(name= "Trickable", default=False)
     kcl_drivable : bpy.props.BoolProperty(name= "Drivable", default=True)
-    kcl_bounce : bpy.props.BoolProperty(name= "Bounce", default=True)
+    kcl_bounce : bpy.props.BoolProperty(name= "Soft Wall", default=False, description="Used to get rid of bean corners, use only on walls that meet road")
     
     kclVariantT00 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
                                                                 ("1", "Dirt with GFX (7.3 , 8.3)", ''),
@@ -586,14 +586,15 @@ class MyProperties(bpy.types.PropertyGroup):
 
     kclFinalFlag : bpy.props.StringProperty(name = "Flag")                                                            
 #endregion
-#region kcl_settings
+ #region kcl_settings
     kcl_applyMaterial : bpy.props.EnumProperty(name = "Material", items=[("0", "Random color", ''),
-                                                                        ("1", "Keep original", '')])
+                                                                        ("2", "Use custom scheme", ''),
+                                                                        ("1", "Keep original", '')],default="2")
     kcl_applyName : bpy.props.EnumProperty(name = "Name", items=[("0", "Flag only", ''),
                                                                     ("1", "Add type label", ''),
                                                                     ("2", "Add type and variant label", ''),
                                                                     ("3", "Add to original", ''),
-                                                                    ("4", "Add to mesh name only",'')])
+                                                                    ("4", "Add to mesh name only",'')],default="1")
 #endregion
 
 labelDict = {
@@ -634,9 +635,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.5"
-latest_version = "v0.1.5"
-prerelease_version = "v0.1.5"
+current_version = "v0.1.6"
+latest_version = "v0.1.6"
+prerelease_version = "v0.1.6"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -658,6 +659,22 @@ class openGithub(bpy.types.Operator):
             webbrowser.get().open('http://www.github.com/Gabriela-Orzechowska/Blender-KMP-Utilities/releases/latest')
         return {'FINISHED'}
 
+class openWSZSTPage(bpy.types.Operator):
+    bl_idname = "open.wszst"
+    bl_label = "Download WSZST"
+
+    def execute(self, context):
+        webbrowser.get().open('https://szs.wiimm.de/download.html')
+        return {'FINISHED'}
+
+class openIssuePage(bpy.types.Operator):
+    bl_idname = "open.issue"
+    bl_label = "Report a bug"
+
+    def execute(self, context):
+        webbrowser.get().open('https://github.com/Gabriela-Orzechowska/Blender-MKW-Utilities/issues/new')
+        return {'FINISHED'}
+
 class KMPUtilities(bpy.types.Panel):
     global latest_version, prerelease_version, current_version
     bl_label = "Main Utilities"
@@ -672,19 +689,22 @@ class KMPUtilities(bpy.types.Panel):
         mytool = scene.kmpt
         newVersionLayout = layout.column()
         updateText = "New version available!: {0}"
-        if(get_prefs(context).prerelease_bool):
-            if(prerelease_version != current_version):
-                newVersionLayout.label(text=updateText.format(prerelease_version))
+        if(get_prefs(context).updates_bool):
+            if(get_prefs(context).prerelease_bool):
+                if(prerelease_version != current_version):
+                    newVersionLayout.label(text=updateText.format(prerelease_version))
+                    newVersionLayout.operator("open.download")
+                    newVersionLayout.label(text="")
+            elif(latest_version != current_version):
+                newVersionLayout.label(text=updateText.format(latest_version))
                 newVersionLayout.operator("open.download")
-                newVersionLayout.label(text="")
-        elif(latest_version != current_version):
-            newVersionLayout.label(text=updateText.format(latest_version))
-            newVersionLayout.operator("open.download")
-            newVersionLayout.label(text="") 
+                newVersionLayout.label(text="") 
+        layout.operator("open.issue")
         layout.prop(mytool, "scale")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
         layout.operator("mkw.objectmerge")
+        #layout.operator("kmpe.load")
 
 class KCLSettings(bpy.types.Panel):
     bl_label = "KCL Settings"
@@ -703,6 +723,7 @@ class KCLSettings(bpy.types.Panel):
 class KCLUtilities(bpy.types.Panel):
     global finalFlag
     global kcl_typeATypes
+    global wszstInstalled
     bl_label = "KCL Utilities"
     bl_idname = "MKW_PT_Kcl"
     bl_space_type = "VIEW_3D"
@@ -713,31 +734,45 @@ class KCLUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt   
-        layout.operator("kclc.load")
+        text="Please download Wiimms SZS Tools (WSZST) to Import/Export KCL."
+        
+        
+        if(wszstInstalled):
+            layout.operator("kclc.load")
+        else:
+            _label_multiline(
+                context=context,
+                text=text,
+                parent=layout
+            )
+            layout.operator("open.wszst")
         layout.prop(mytool, "kcl_masterType")
         variantPropName = "kclVariant" + mytool.kcl_masterType
         layout.prop(mytool, variantPropName)
         if(mytool.kcl_masterType == "T10"):
             layout.prop(mytool, "kclVariant10Index")
-        if(mytool.kcl_masterType == "T12"):
-            layout.prop(mytool, "kclVariant12Index")
         if(mytool.kcl_masterType == "T18"):
             layout.prop(mytool, "kclVariantT18Circuits")
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             layout.prop(mytool, t18variant)
-        if(mytool.kcl_masterType in kcl_typeATypes or mytool.kcl_masterType == "T1A"):
+        if(mytool.kcl_masterType in kcl_typeATypes or mytool.kcl_masterType == "T1A" or mytool.kcl_masterType in kcl_wallTypes):
             layout.prop(mytool, "kcl_shadow")
         if(mytool.kcl_masterType in kcl_typeATypes):
             layout.prop(mytool, "kcl_trickable")
             layout.prop(mytool, "kcl_drivable")
         if(mytool.kcl_masterType == "T19"):
-            layout.label(text = "Nintendo  uses  this  type  without")    
-            layout.label(text = "'Bounce' flag.")  
+            text='This flag is mainly used with "Soft Walls"'
+            _label_multiline(
+                context=context,
+                text=text,
+                parent=layout
+            )
         if(mytool.kcl_masterType in kcl_wallTypes):
             layout.prop(mytool, "kcl_bounce") 
         
         layout.operator("kclc.applyflag")
-        layout.operator("kclc.export")
+        if(wszstInstalled):
+            layout.operator("kclc.export")
         
 class AREAUtilities(bpy.types.Panel):
     bl_label = "AREA Utilities"
@@ -803,7 +838,7 @@ class AREAUtilities(bpy.types.Panel):
             area_create_column.enabled = True
         
 class CAMEUtilities(bpy.types.Panel):
-    bl_label = "CAME Utilities"
+    bl_label = "Opening Cameras Utilities"
     bl_idname = "MKW_PT_KmpCame"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -1303,7 +1338,7 @@ class apply_kcl_flag(bpy.types.Operator):
         z = '000'
         if(hasattr(mytool, variantPropName)):
             z = getattr(mytool, variantPropName)
-            z = '{:03b}'.format(int(z)).zfill(3)
+            z = '{:03b}'.format(int(z))
         if(mytool.kcl_masterType == 'T18'):
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             z = getattr(mytool,t18variant)
@@ -1326,16 +1361,24 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType == 'T10'):
             flag = '{:08b}'.format(mytool.kclVariant10Index)+z+a+b
         if(mytool.kcl_masterType == 'T12'):
-            flag = '{:08b}'.format(mytool.kclVariant12Index)+a+b
+            flag = '{:08b}'.format(a+b)
         if(mytool.kcl_masterType in kcl_wallTypes):
-            w = int(mytool.kcl_bounce == False)
-            flag = str(w)+"0000000"+z+a+b
+            w = int(mytool.kcl_bounce == True)
+            y = mytool.kcl_shadow
+            y = '{:03b}'.format(int(y))
+            flag = str(w)+"0000"+y+z+a+b
 
         finalFlag = '{:04x}'.format(int(flag,2))
         mytool.kclFinalFlag = finalFlag 
         properFlag = "_"+mytool.kcl_masterType[1:]+"_F"+finalFlag
         properFlag = properFlag.upper()
+        flagOnly = properFlag
+        
         activeObject = context.active_object
+        if not hasattr(activeObject,"type"):
+            self.report({'WARNING'}, "Please select a mesh.")
+            return {'FINISHED'}
+
         if(activeObject.type != "MESH"):
             self.report({'WARNING'}, "Selected object is not a mesh.")
             return {'FINISHED'}
@@ -1372,17 +1415,66 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_applyName is not "4"):
             activeObject.name = properFlag
         activeObject.data.name = properFlag
+        decodeFlag(properFlag[-4:])
         if(mytool.kcl_applyMaterial == "1"):
             return {'FINISHED'}
         context.active_object.data.materials.clear()
-        mat = bpy.data.materials.get(properFlag)
+        mat = bpy.data.materials.get(flagOnly)
         if mat is None:
-            mat = bpy.data.materials.new(name=properFlag)
-            mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+            mat = bpy.data.materials.new(name=flagOnly)
+            if(mytool.kcl_applyMaterial == "0"):
+                mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+            elif(mytool.kcl_applyMaterial == "2"):
+                color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable,mytool.kcl_shadow)
+                mat.diffuse_color = (color[0],color[1],color[2],1)
         context.active_object.data.materials.append(mat)
 
 
         return {'FINISHED'}
+
+def decodeFlag(bareFlag):
+    binary = bin(int(bareFlag, 16))[2:].zfill(16)
+    kclType = "T"+hex(int(binary[-5:],2))[2:].zfill(2).upper()
+    variant = hex(int(binary[-8:-5],2))[2:]
+    shadow = int(binary[5:8],2)
+    trickable = int(binary[2],2)
+    drivable = int(str(binary[1]) == "0")
+    softWall = int(binary[0],2)
+
+    return kclType,variant,shadow,trickable,drivable,softWall
+
+
+def getSchemeColor(context,kclType,trickable,drivable,shadow):
+    global kcl_typeATypes, kcl_wallTypes
+    getName = "kclColor" + kclType
+    colorT = getattr(get_prefs(context), getName)
+    color = [0,0,0]
+    color[0] = colorT[0]
+    color[1] = colorT[1]
+    color[2] = colorT[2]
+    if(kclType not in kcl_wallTypes):
+        if(int(shadow) > 0):
+            if(get_prefs(context).darkenBLIGHT):
+                blightScale = get_prefs(context).blightScale
+                color[0] = color[0] * (1-blightScale)
+                color[1] = color[1] * (1-blightScale)
+                color[2] = color[2] * (1-blightScale)
+    if(kclType in kcl_typeATypes):
+        if(trickable == True):
+            if(get_prefs(context).addTintToTrickable):
+                tint = getattr(get_prefs(context),"trickableColor")
+                tintScale = getattr(get_prefs(context),"trickableScale")
+                color[0] = color[0] - (0.5 * tintScale) + (tint[0] * tintScale)
+                color[1] = color[1] - (0.5 * tintScale) + (tint[1] * tintScale)
+                color[2] = color[2] - (0.5 * tintScale) + (tint[2] * tintScale)
+        if(drivable == False):
+            if(get_prefs(context).addTintToReject):
+                tint = getattr(get_prefs(context),"rejectColor")
+                tintScale = getattr(get_prefs(context),"rejectScale")
+                color[0] = color[0] - (0.5 * tintScale) + (tint[0] * tintScale)
+                color[1] = color[1] - (0.5 * tintScale) + (tint[1] * tintScale)
+                color[2] = color[2] - (0.5 * tintScale) + (tint[2] * tintScale)
+    return color
 
 class export_kcl_file(bpy.types.Operator, ExportHelper):
     bl_idname = "kclc.export"
@@ -1431,12 +1523,18 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
     bl_idname = "kclc.load"
     bl_label = "Import KCL file"       
     filename_ext = '.kcl'
+    bl_options = {'UNDO'}
     bl_description = "Loads KCL file"
     
     filter_glob: bpy.props.StringProperty(
         default='*.kcl',
         options={'HIDDEN'}
     )
+
+    kclImportColor : bpy.props.EnumProperty(name = "Imported colors", items=[("0", "Random color", ''),
+                                                                        ("1", "Use custom scheme", '')],default="1")
+    kclImportScale : bpy.props.FloatProperty(name = "Scale", default=0.01, max=100,min=0.0001)
+
     def execute(self, context):
         scene = context.scene
         mytool = scene.kmpt
@@ -1470,6 +1568,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         os.system("del \""+filepath[:-3]+"mtl\"")
         context.view_layer.objects.active = bpy.context.selected_objects[0]
         objs = bpy.context.selected_objects
+        bpy.ops.transform.resize(value=(self.kclImportScale, self.kclImportScale, self.kclImportScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.separate(type='MATERIAL')
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -1494,7 +1593,13 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
                         mat = bpy.data.materials.get(properFlag)
                         if mat is None:
                             mat = bpy.data.materials.new(name=properFlag)
-                            mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+                            if(self.kclImportColor == "0"):
+                                 mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+                            elif(self.kclImportColor == "1"):
+                                _kclType,_variant,_shadow,_trickable,_drivable,_softWall = decodeFlag(properFlag[-4:])
+                                colorR = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
+                                
+                                mat.diffuse_color = (colorR[0],colorR[1],colorR[2],1)
                         obj.data.materials.append(mat)
 
         
@@ -1684,18 +1789,18 @@ class kmp_area (bpy.types.Operator):
             object_position = object.location
             name = object.name
             properties = name.split("_")
-            areaNumber = '0x{0:0{1}X}'.format(int(properties[1]), 2)[2:]
-            areaShape = '0x{0:0{1}X}'.format(int(properties[2]), 2)[2:]
-            areaType = '0x{0:0{1}X}'.format(int(properties[3]), 2)[2:]
-            areaID = "FF" if properties[4] == "-1" else '0x{0:0{1}X}'.format(int(properties[4]), 2)[2:]
-            areaPrority = '0x{0:0{1}X}'.format(int(properties[5]), 2)[2:]
-            areaSet1 = '0x{0:0{1}X}'.format(int(properties[6]), 4)[2:]
-            areaSet2 = '0x{0:0{1}X}'.format(int(properties[7]), 4)[2:]
+            areaNumber = '{0:0{1}X}'.format(int(properties[1]), 2)
+            areaShape = '{0:0{1}X}'.format(int(properties[2]), 2)
+            areaType = '{0:0{1}X}'.format(int(properties[3]), 2)
+            areaID = "FF" if properties[4] == "-1" else '{0:0{1}X}'.format(int(properties[4]), 2)
+            areaPrority = '{0:0{1}X}'.format(int(properties[5]), 2)
+            areaSet1 = '{0:0{1}X}'.format(int(properties[6]), 4)
+            areaSet2 = '{0:0{1}X}'.format(int(properties[7]), 4)
             areaSet = str(areaSet1) + str(areaSet2)
-            areaRoute = '0x{0:0{1}X}'.format(int(properties[8]), 2)[2:]
+            areaRoute = '{0:0{1}X}'.format(int(properties[8]), 2)
             if properties[8] == "-1":
                 areaRoute = "FF"
-            areaEnemy = '0x{0:0{1}X}'.format(int(properties[9]), 2)[2:]
+            areaEnemy = '{0:0{1}X}'.format(int(properties[9]), 2)
             if properties[9] == "-1":
                 areaEnemy = "FF"
             xpos = round(object_position[0] * scale, 2)
@@ -1788,7 +1893,7 @@ class kmp_c_cylinder_area (bpy.types.Operator):
         return {'FINISHED'}
   
 loading = 0
-class load_kmp(bpy.types.Operator, ImportHelper):
+class load_kmp_area(bpy.types.Operator, ImportHelper):
     bl_idname = "kmpc.load"
     bl_label = "Import KMP AREAs"       
     filename_ext = '.kmp'
@@ -1849,15 +1954,18 @@ class load_kmp(bpy.types.Operator, ImportHelper):
             areaZScale = struct.unpack('>f', file.read(4))[0]
             areaSet1 = struct.unpack('>H', file.read(2))[0]
             areaSet2 = struct.unpack('>H', file.read(2))[0]
-            areaRoute = struct.unpack('>b', file.read(1))[0]
-            areaEnemy = struct.unpack('>b', file.read(1))[0]
+            areaRoute = struct.unpack('>B', file.read(1))[0]
+            areaEnemy = struct.unpack('>B', file.read(1))[0]
             areaPadding = struct.unpack('>h', file.read(2))[0]
+            if(areaEnemy == 255):
+                areaEnemy = -1
+            if(areaRoute == 255):
+                areaRoute = -1
             areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
             areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
             areaScale = (areaXScale, areaZScale, areaYScale)
             areaName = "AREA_" + str(existingAreas + i) + "_" + '{:X}'.format(areaShape) + "_" + str(int(areaType)) + "_" + str(int(areaCAME))\
             + "_" + '{:X}'.format(areaPriority) + "_" + '{:X}'.format(areaSet1) + "_" + '{:X}'.format(areaSet2) + "_" + str(areaRoute) + "_" + str(areaEnemy)
-             
             areaName = areaName.upper()
             if(str(areaShape) == "0"):
                 bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation, rotation=areaRotation)
@@ -1881,8 +1989,94 @@ class load_kmp(bpy.types.Operator, ImportHelper):
             mat = bpy.data.materials.get("kmpc.area.A" + str(int(areaType)))
             activeObject.data.materials.append(mat)
             
-        
+        file.close()
         loading = 0
+        return {'FINISHED'}
+
+class load_kmp_enemy(bpy.types.Operator, ImportHelper):
+    bl_idname = "kmpe.load"
+    bl_label = "Import Enemy Paths as Curve"       
+    filename_ext = '.kmp'
+    bl_description = "Imports main enemy path as curve. Used for previewing replay cameras."
+    
+    filter_glob: bpy.props.StringProperty(
+        default='*.kmp',
+        options={'HIDDEN'}
+    )
+    def execute(self, context):
+        scene = context.scene
+        mytool = scene.kmpt
+        scale = mytool.scale
+        path = self.filepath
+
+        file = open(path, "rb")
+        magic = struct.unpack('4s', file.read(4))[0].decode("ascii")
+        if(magic != "RKMD"):
+            self.report({"WARNING"}, "Wrong file magic")
+            return {'CANCELLED'}
+        
+        fileLen = struct.unpack(">I", file.read(4))[0]
+        sectionNumber = struct.unpack(">H", file.read(2))[0]
+        headerLen = struct.unpack(">H", file.read(2))[0]
+        versionNumber = struct.unpack(">I", file.read(4))[0]
+        sectionOffsets = []
+        for i in range(int(sectionNumber)):
+            sectionOffsets.append(struct.unpack(">I", file.read(4))[0])
+        
+        enptOffset = 80 + sectionOffsets[1]
+        enphOffset = 80 + sectionOffsets[2]
+        file.seek(enphOffset, 0)
+        enphNumber = struct.unpack('>H', file.read(2))[0]
+        enphUnused = struct.unpack('>H', file.read(2))[0]
+        giantPointShitfest = []
+        groupShitfest = [0]
+        loop = True
+        while(loop):
+            enphStart = struct.unpack('>B', file.read(1))[0]
+            enphLenght = struct.unpack('>B', file.read(1))[0]
+            enphLast = enphStart+enphLenght-1
+            file.seek(6, 1)
+            enphNext0 = struct.unpack('>B', file.read(1))[0]
+            enphNextOffset = 84 + sectionOffsets[2] + (16 * enphNext0)
+            file.seek(enphNextOffset, 0)
+            for i in range(int(enphLenght)):
+                giantPointShitfest.append(enphStart+i)
+            
+            if(enphNext0 in groupShitfest):
+                loop=False
+            groupShitfest.append(enphNext0)
+        biggerPointShitfest = []
+        for i in giantPointShitfest:
+            enptPointOffset = 84 + sectionOffsets[1] + (20 * i)
+            file.seek(enptPointOffset, 0)
+            position = [0,0,0]
+            x = struct.unpack('>f', file.read(4))[0]
+            y = struct.unpack('>f', file.read(4))[0]
+            z = struct.unpack('>f', file.read(4))[0]
+            position[0] = x / scale
+            position[2] = y / scale
+            position[1] = z / scale * -1
+            biggerPointShitfest.append(position)
+
+        crv = bpy.data.curves.new('crv', 'CURVE')
+        crv.dimensions = '3D'
+        spline = crv.splines.new(type='BEZIER')
+        spline.bezier_points.add(len(biggerPointShitfest) - 1) 
+        for p, new_co in zip(spline.bezier_points, biggerPointShitfest):
+            p.co = (new_co)
+        obj = bpy.data.objects.new('ENPT', crv)
+        bpy.data.scenes[0].collection.objects.link(obj)
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.curve.select_all(action='SELECT')
+        bpy.ops.curve.handle_type_set(type='AUTOMATIC')
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+
+
+
+        file.close()
         return {'FINISHED'}
 
 matColors = [(1.0, 0.262251, 0, 0.6), 
@@ -2102,16 +2296,191 @@ def frame_change_handler(scene):
 
 def get_prefs(context):
 	return context.preferences.addons[__name__].preferences
-               
+
+def set_bit(value, bit_index):
+     return value | (1 << bit_index)
+
+def get_bit(value, bit_index):
+     return value & (1 << bit_index)
+
+def clear_bit(value, bit_index):
+     return value & ~(1 << bit_index)
+
+class ExportPrefs(bpy.types.Operator, ExportHelper):
+    bl_idname = "prefs.export"
+    bl_label = "Export Preferences"
+    filename_ext = ".utils_pref"
+
+    filter_glob: bpy.props.StringProperty(
+        default='*.utils_pref',
+        options={'HIDDEN'}
+    )
+
+    def execute(self, context):
+        filepath = self.filepath
+        file = open(filepath,'wb')
+        boolToByte = 0xFF if get_prefs(context).prerelease_bool else 0x00
+        settings = 0
+        settings += int(get_prefs(context).darkenBLIGHT==True)*16
+        settings += int(get_prefs(context).addTintToTrickable==True)*8
+        settings += int(get_prefs(context).addTintToReject==True)*4
+        settings += int(get_prefs(context).prerelease_bool==True)*2
+        settings += int(get_prefs(context).updates_bool==True)
+        file.write(struct.pack('>4s',bytes("UPEF","ascii")))
+        file.write(struct.pack('>B',0x0A))
+        file.write(struct.pack('>B',settings))
+        file.write(struct.pack('>f',get_prefs(context).blightScale))
+        values = get_prefs(context).trickableColor
+        file.write(struct.pack('>3f',values[0],values[1],values[2]))
+        file.write(struct.pack('>f',get_prefs(context).trickableScale))
+        values = get_prefs(context).rejectColor
+        file.write(struct.pack('>3f',values[0],values[1],values[2]))
+        file.write(struct.pack('>f',get_prefs(context).rejectScale))
+        for i in range(32):
+            color = "kclColorT" + hex(i)[2:].zfill(2).upper()
+            values = getattr(get_prefs(context), color)
+            file.write(struct.pack('>3f',values[0],values[1],values[2]))
+        
+        
+        
+        file.close()
+        return {'FINISHED'}
+class ImportPrefs(bpy.types.Operator, ImportHelper):
+    bl_idname = "prefs.import"
+    bl_label = "Import Preferences"
+    filename_ext = ".utils_pref"
+
+    filter_glob: bpy.props.StringProperty(
+        default='*.utils_pref',
+        options={'HIDDEN'}
+    )
+
+    def execute(self, context):
+        filepath = self.filepath
+        file = open(filepath,'rb')
+        header = struct.unpack('>4s', file.read(4))[0].decode("ascii")
+        if(header != "UPEF"):
+            self.report({"WARNING"}, "Wrong file header")
+            return {'CANCELLED'}
+        version = struct.unpack('>B', file.read(1))[0]
+        settings = struct.unpack('>B', file.read(1))[0]
+        settingsBin = '{:08b}'.format(settings)
+        setattr(get_prefs(context),"updates_bool",settingsBin[7]=='1')
+        setattr(get_prefs(context),"prerelease_bool",settingsBin[6]=='1')
+        setattr(get_prefs(context),"addTintToReject",settingsBin[5]=='1')
+        setattr(get_prefs(context),"addTintToTrickable",settingsBin[4]=='1')
+        setattr(get_prefs(context),"darkenBLIGHT",settingsBin[3]=='1')
+        blightScale = struct.unpack('>f', file.read(4))[0]
+        get_prefs(context).blightScale = blightScale
+        trickableTint = [0,0,0]
+        trickableTint[0] = struct.unpack('>f', file.read(4))[0]
+        trickableTint[1] = struct.unpack('>f', file.read(4))[0]
+        trickableTint[2] = struct.unpack('>f', file.read(4))[0]
+        get_prefs(context).trickableColor = trickableTint
+        trickableScale = struct.unpack('>f', file.read(4))[0]
+        get_prefs(context).trickableScale = trickableScale
+        rejectTint =[0,0,0]
+        rejectTint[0] = struct.unpack('>f', file.read(4))[0]
+        rejectTint[1] = struct.unpack('>f', file.read(4))[0]
+        rejectTint[2] = struct.unpack('>f', file.read(4))[0]
+        get_prefs(context).rejectColor = rejectTint
+        rejectScale = struct.unpack('>f', file.read(4))[0]
+        get_prefs(context).rejectScale = rejectScale
+        for i in range(32):
+            color = "kclColorT" + hex(i)[2:].zfill(2).upper()
+            values = [0,0,0]
+            values[0] = struct.unpack('>f', file.read(4))[0]
+            values[1] = struct.unpack('>f', file.read(4))[0]
+            values[2] = struct.unpack('>f', file.read(4))[0]
+            setattr(get_prefs(context),color,values)
+        
+        
+        
+        file.close()
+        return {'FINISHED'}
 class PreferenceProperty(bpy.types.AddonPreferences):
-	bl_idname = __name__
+    bl_idname = __name__
+#region preferences
+    updates_bool : bpy.props.BoolProperty(name="Check for updates", default=True)
+    prerelease_bool : bpy.props.BoolProperty(name="Check for pre-release versions", default=False)
 
-	prerelease_bool = bpy.props.BoolProperty(name="Check for pre-release versions", default=False)
+    openScheme : bpy.props.BoolProperty(name="Custom KCL Flag Scheme")
 
-	def draw(self, context):
-		layout = self.layout
-		box = layout.box()
-		box.row().prop(self, "prerelease_bool")
+    darkenBLIGHT : bpy.props.BoolProperty(name="Darken Shadow Flags",default=True)
+    blightScale : bpy.props.FloatProperty(name="Scale",min=0.0,max=0.1,default=0.3)
+    addTintToTrickable : bpy.props.BoolProperty(name="Add Color Tint to Trickable",default=True)
+    trickableColor : bpy.props.FloatVectorProperty(name='Color', subtype='COLOR',min=0.0,max=1.0,default=[0.8,0.8,0])
+    trickableScale : bpy.props.FloatProperty(name="Scale",min=0.0,max=1.0,default=0.3)
+    addTintToReject : bpy.props.BoolProperty(name="Add Color Tint to non-Drivable",default=True)
+    rejectColor : bpy.props.FloatVectorProperty(name='Color', subtype='COLOR',min=0.0,max=1.0,default=[1,0,0])
+    rejectScale : bpy.props.FloatProperty(name="Scale",min=0.0,max=1.0,default=0.4)
+
+    kclColorT00 : bpy.props.FloatVectorProperty(name='Road (0x00)', subtype='COLOR',min=0.0,max=1.0,default=[0.8,0.8,0.8])
+    kclColorT01 : bpy.props.FloatVectorProperty(name='Slippery Road 1 (0x01)', subtype='COLOR',min=0.0,max=1.0,default=[0.7,0.65,0.3])
+    kclColorT02 : bpy.props.FloatVectorProperty(name='Weak Off-road (0x02)', subtype='COLOR',min=0.0,max=1.0,default=[0.25,0.43,0])
+    kclColorT03 : bpy.props.FloatVectorProperty(name='Off-road (0x03)', subtype='COLOR',min=0.0,max=1.0,default=[0,0.3,0])
+    kclColorT04 : bpy.props.FloatVectorProperty(name='Heavy Off-road (0x04)', subtype='COLOR',min=0.0,max=1.0,default=[0,0.15,0])
+    kclColorT05 : bpy.props.FloatVectorProperty(name='Slippery Road 2 (0x05)', subtype='COLOR',min=0.0,max=1.0,default=[0,0.45,0.45])
+    kclColorT06 : bpy.props.FloatVectorProperty(name='Boost Panel (0x06)', subtype='COLOR',min=0.0,max=1.0,default=[0.6,0.3,0])
+    kclColorT07 : bpy.props.FloatVectorProperty(name='Boost Ramp (0x07)', subtype='COLOR',min=0.0,max=1.0,default=[0.45,0.126,0])
+    kclColorT08 : bpy.props.FloatVectorProperty(name='Jump Pad (0x08)', subtype='COLOR',min=0.0,max=1.0,default=[1,0.8,0])
+    kclColorT09 : bpy.props.FloatVectorProperty(name='Item Road (0x09)', subtype='COLOR',min=0.0,max=1.0,default=[0.7,0,0.4])
+    kclColorT0A : bpy.props.FloatVectorProperty(name='Solid Fall (0x0A)', subtype='COLOR',min=0.0,max=1.0,default=[0.3,0,0])
+    kclColorT0B : bpy.props.FloatVectorProperty(name='Moving Road (0x0B)', subtype='COLOR',min=0.0,max=1.0,default=[0,0,0.45])
+    kclColorT0C : bpy.props.FloatVectorProperty(name='Wall (0x0C)', subtype='COLOR',min=0.0,max=1.0,default=[0.25,0.25,0.25])
+    kclColorT0D : bpy.props.FloatVectorProperty(name='Invisible Wall (0x0D)', subtype='COLOR',min=0.0,max=1.0,default=[0,1,1])
+    kclColorT0E : bpy.props.FloatVectorProperty(name='Item Wall (0x0E)', subtype='COLOR',min=0.0,max=1.0,default=[0.5,0.2,0.6])
+    kclColorT0F : bpy.props.FloatVectorProperty(name='Wall 3 (0x0F)', subtype='COLOR',min=0.0,max=1.0,default=[0.3,0.3,0.3])
+
+    kclColorT10 : bpy.props.FloatVectorProperty(name='Fall Boundary (0x10)', subtype='COLOR',min=0.0,max=1.0,default=[1,0,0])
+    kclColorT11 : bpy.props.FloatVectorProperty(name='Cannon Activator (0x11)', subtype='COLOR',min=0.0,max=1.0,default=[0.7,0,0.4])
+    kclColorT12 : bpy.props.FloatVectorProperty(name='Force Recalculation (0x12)', subtype='COLOR',min=0.0,max=1.0,default=[0.2,0.2,0.3])
+    kclColorT13 : bpy.props.FloatVectorProperty(name='Half-pipe Ramp (0x13)', subtype='COLOR',min=0.0,max=1.0,default=[0,0.333,0.65])
+    kclColorT14 : bpy.props.FloatVectorProperty(name='Wall (0x14)', subtype='COLOR',min=0.0,max=1.0,default=[0.35,0.35,0.35])
+    kclColorT15 : bpy.props.FloatVectorProperty(name='Moving Road (0x15)', subtype='COLOR',min=0.0,max=1.0,default=[0,0,0.56])
+    kclColorT16 : bpy.props.FloatVectorProperty(name='Sticky Road (0x16)', subtype='COLOR',min=0.0,max=1.0,default=[0.6,0.3,0.6])
+    kclColorT17 : bpy.props.FloatVectorProperty(name='Road (0x17)', subtype='COLOR',min=0.0,max=1.0,default=[0.8,0.8,0.8])
+    kclColorT18 : bpy.props.FloatVectorProperty(name='Sound Trigger (0x18)', subtype='COLOR',min=0.0,max=1.0,default=[0.2,0.3,0.5])
+    kclColorT19 : bpy.props.FloatVectorProperty(name='Weak Wall (0x19)', subtype='COLOR',min=0.0,max=1.0,default=[0.4,0.4,0.3])
+    kclColorT1A : bpy.props.FloatVectorProperty(name='Effect Trigger (0x1A)', subtype='COLOR',min=0.0,max=1.0,default=[0.2,0.1,0.3])
+    kclColorT1B : bpy.props.FloatVectorProperty(name='Item State Modifier (0x1B)', subtype='COLOR',min=0.0,max=1.0,default=[0.45,0.3,0.3])
+    kclColorT1C : bpy.props.FloatVectorProperty(name='Half-Pipe Invisible Wall (0x1C)', subtype='COLOR',min=0.0,max=1.0,default=[0.1,0.5,0.5])
+    kclColorT1D : bpy.props.FloatVectorProperty(name='Moving Road (0x1D)', subtype='COLOR',min=0.0,max=1.0,default=[0,0,0.36])
+    kclColorT1E : bpy.props.FloatVectorProperty(name='Special Wall (0x1E)', subtype='COLOR',min=0.0,max=1.0,default=[0.6,0.4,0.5])
+    kclColorT1F : bpy.props.FloatVectorProperty(name='Wall 5 (0x1F)', subtype='COLOR',min=0.0,max=1.0,default=[0.2,0.2,0.2])
+#endregion
+    
+    def draw(self, context):
+        layout = self.layout
+        wm = context.window_manager
+        row = layout.row()
+        row.operator("prefs.import")
+        row.operator("prefs.export")
+        col = layout.column()
+        col.prop(self, "updates_bool")
+        if(self.updates_bool):
+            col.prop(self, "prerelease_bool")
+        box = layout.box()
+        column = box.column()
+        column.prop(self,"openScheme",
+            icon="TRIA_DOWN" if self.openScheme else "TRIA_RIGHT", emboss=False
+        )
+        if(self.openScheme):
+            column.prop(self,"darkenBLIGHT")
+            if(self.darkenBLIGHT):
+                column.prop(self,"blightScale")
+            column.prop(self,"addTintToTrickable")
+            if(self.addTintToTrickable):
+                column.prop(self,"trickableColor")
+                column.prop(self,"trickableScale")
+            column.prop(self,"addTintToReject")
+            if(self.addTintToReject):
+                column.prop(self,"rejectColor")
+                column.prop(self,"rejectScale")
+            column.label(text="")
+            for i in range (32):
+                name = "kclColorT"+'{0:0{1}X}'.format(i,2)
+                column.prop(self,name)
 
 import textwrap
 def _label_multiline(context, text, parent):
@@ -2152,12 +2521,15 @@ class BadPluginInstall(bpy.types.Panel):
         )
 
 
-classes = [PreferenceProperty, MyProperties, KMPUtilities, KCLSettings, KCLUtilities, AREAUtilities, CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [PreferenceProperty, MyProperties, KMPUtilities, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities, CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
- 
+wszstInstalled = False
  
 def register():
-
+    global wszstInstalled
+    wszst = os.popen('wszst version').read()
+    if(wszst.startswith("wszst: Wiimms SZS Tool")):
+        wszstInstalled = True
     script_file = os.path.normpath(__file__)
     directory = os.path.dirname(script_file)
     if directory.endswith("Blender-KMP-Utilities"):
@@ -2167,12 +2539,14 @@ def register():
         bpy.app.handlers.frame_change_post.append(frame_change_handler)
         bpy.app.handlers.load_post.append(load_file_handler)
         bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
-        bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
-        bpy.types.TOPBAR_MT_file_import.append(import_kcl_button)
+        if(wszstInstalled):
+            bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
+            bpy.types.TOPBAR_MT_file_import.append(import_kcl_button)
         bpy.types.Scene.kmpt = bpy.props.PointerProperty(type= MyProperties)
         
     else:
         bpy.utils.register_class(BadPluginInstall)
+
  
 def unregister():
     for cls in classes:
@@ -2186,8 +2560,11 @@ def unregister():
     bpy.app.handlers.frame_change_post.clear()
     bpy.app.handlers.load_post.clear()
     bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
-    bpy.types.TOPBAR_MT_file_export.remove(export_kcl_button)
-    bpy.types.TOPBAR_MT_file_import.remove(import_kcl_button)
+    try:
+        bpy.types.TOPBAR_MT_file_export.remove(export_kcl_button)
+        bpy.types.TOPBAR_MT_file_import.remove(import_kcl_button)
+    except RuntimeError:
+        pass
     del bpy.types.Scene.kmpt
  
  
