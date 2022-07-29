@@ -1,7 +1,7 @@
 bl_info = {
     "name" : "Mario Kart Wii Utilities",
     "author" : "Gabriela_",
-    "version" : (1, 6),
+    "version" : (1, 7, 1),
     "blender" : (2, 82, 0),
     "location" : "View3d > Tool",
     "warning" : "",
@@ -635,9 +635,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.7"
-latest_version = "v0.1.7"
-prerelease_version = "v0.1.7"
+current_version = "v0.1.7-1"
+latest_version = "v0.1.7-1"
+prerelease_version = "v0.1.7-1"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -1501,6 +1501,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         filepath = self.filepath
+        bpy.ops.object.mode_set(mode='OBJECT')
         selection = context.selected_objects
         objectsToExport = []
         if(self.kclExportSelection):
@@ -1509,7 +1510,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
         
         if(self.kclExportFlagOnly):
-            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName(obj.name)]
+            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName(obj.data.name)]
             objectsToExport = objectsToExport1
 
         bpy.ops.object.select_all(action='DESELECT')
@@ -1517,9 +1518,11 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             obj.select_set(True)
 
         
-        
+        selectionBool = False
+        if(self.kclExportSelection or self.kclExportFlagOnly):
+            selectionBool = True
 
-        bpy.ops.export_scene.obj(filepath=filepath, use_selection=self.kclExportSelection, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
+        bpy.ops.export_scene.obj(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
         wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
         wkclt += ("WEAKWALLS," if self.kclExportWeakWalls else "")
