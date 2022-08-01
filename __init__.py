@@ -1498,6 +1498,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
     kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road")
     kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls")
+    kclExportConvFaceup : bpy.props.BoolProperty(name="Convert faceup walls to road")
 
     def execute(self, context):
         filepath = self.filepath
@@ -1531,6 +1532,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         wkclt += ("DROPINVALID," if self.kclExportDropInvalid else "")
         wkclt += ("RMFACEDOWN," if self.kclExportRemoveFacedown else "")
         wkclt += ("RMFACEUP," if self.kclExportRemoveFaceup else "")
+        wkclt += ("CONVFACEUP," if self.kclExportConvFaceup else "")
         
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
