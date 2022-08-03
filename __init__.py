@@ -703,7 +703,17 @@ class KMPUtilities(bpy.types.Panel):
         layout.prop(mytool, "scale")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
-        layout.operator("mkw.objectmerge")
+        merge = layout.row()
+        merge.operator("mkw.objectmerge")
+        if(bpy.context.object is not None):
+            current_mode = bpy.context.object.mode
+        else:
+            current_mode = 'OBJECT'
+        
+        if(current_mode != 'OBJECT'):
+            merge.enabled = False
+        else:
+            merge.enabled = True
         #layout.operator("kmpe.load")
 
 class KCLSettings(bpy.types.Panel):
@@ -1361,7 +1371,7 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType == 'T10'):
             flag = '{:08b}'.format(mytool.kclVariant10Index)+z+a+b
         if(mytool.kcl_masterType == 'T12'):
-            flag = '{:08b}'.format(a+b)
+            flag = a+b
         if(mytool.kcl_masterType in kcl_wallTypes):
             w = int(mytool.kcl_bounce == True)
             y = mytool.kcl_shadow
