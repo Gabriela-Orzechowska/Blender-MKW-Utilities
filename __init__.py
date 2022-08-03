@@ -1371,7 +1371,7 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType == 'T10'):
             flag = '{:08b}'.format(mytool.kclVariant10Index)+z+a+b
         if(mytool.kcl_masterType == 'T12'):
-            flag = a+b
+            flag = '{:08b}'.format(18)
         if(mytool.kcl_masterType in kcl_wallTypes):
             w = int(mytool.kcl_bounce == True)
             y = mytool.kcl_shadow
