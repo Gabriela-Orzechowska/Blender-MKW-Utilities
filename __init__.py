@@ -1512,7 +1512,11 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         filepath = self.filepath
-        bpy.ops.object.mode_set(mode='OBJECT')
+        activeObject = bpy.context.active_object
+        if hasattr(activeObject,"type"):
+            if(activeObject.type == "MESH"):
+                bpy.ops.object.mode_set(mode='OBJECT')
+        
         selection = context.selected_objects
         objectsToExport = []
         if(self.kclExportSelection):
