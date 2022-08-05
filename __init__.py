@@ -593,8 +593,8 @@ class MyProperties(bpy.types.PropertyGroup):
     kcl_applyName : bpy.props.EnumProperty(name = "Name", items=[("0", "Flag only", ''),
                                                                     ("1", "Add type label", ''),
                                                                     ("2", "Add type and variant label", ''),
-                                                                    ("3", "Add to original", ''),
-                                                                    ("4", "Add to mesh name only",'')],default="1")
+                                                                    ("3", "Add to original", '')
+                                                                    ],default="1")
 #endregion
 
 labelDict = {
@@ -703,8 +703,9 @@ class KMPUtilities(bpy.types.Panel):
         layout.prop(mytool, "scale")
         layout.operator("kmpc.cursor")
         layout.operator("kmpc.gobj")
-        merge = layout.row()
+        merge = layout.column()
         merge.operator("mkw.objectmerge")
+        merge.operator("mkw.matdel")
         if(bpy.context.object is not None):
             current_mode = bpy.context.object.mode
         else:
@@ -1280,6 +1281,15 @@ class scene_setup(bpy.types.Operator):
         scene.frame_start = 0
         return {'FINISHED'}
 
+class remove_duplicate_materials(bpy.types.Operator):
+    bl_idname = "mkw.matdel"
+    bl_label = "Remove duplicate materials"
+    bl_description = "Removes duplicated materials"
+    bl_options = {'UNDO'}
+    def execute(self, context):
+        remove_all_duplicate_materials()
+        return {'FINISHED'}
+
 def replace_material(bad_mat, good_mat):
     bad_mat.user_remap(good_mat)
     bpy.data.materials.remove(bad_mat)
@@ -1496,9 +1506,10 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         default='*.kcl',
         options={'HIDDEN'}
     )
-    kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
-    kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
+    # kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
+    kclExportMerge : bpy.props.BoolProperty(name="Merge and remove .001s", default=True)
+    kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
     kclExportLowerDegree : bpy.props.IntProperty(name="Degree", default= 45)
@@ -1517,12 +1528,15 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             if(activeObject.type == "MESH"):
                 bpy.ops.object.mode_set(mode='OBJECT')
         
+        
+        if(self.kclExportMerge):
+            merge_duplicate(context)
         selection = context.selected_objects
         objectsToExport = []
-        if(self.kclExportSelection):
-            objectsToExport = selection
-        else:
-            objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
+        # if(self.kclExportSelection):
+        #     objectsToExport = selection
+        # else:
+        objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
         
         if(self.kclExportFlagOnly):
             objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName(obj.data.name)]
@@ -1534,8 +1548,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
         
         selectionBool = False
-        if(self.kclExportSelection or self.kclExportFlagOnly):
-            selectionBool = True
+        # if(self.kclExportSelection or self.kclExportFlagOnly):
+        #     selectionBool = True
 
         bpy.ops.export_scene.obj(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
@@ -1698,6 +1712,7 @@ def join_duplicate_objects(main_object, duplicate_object):
         bpy.ops.object.join() 
         bpy.ops.object.select_all(action='DESELECT')
 
+
 def get_duplicated_names(original_name):
     common_name = original_name
 
@@ -1717,51 +1732,42 @@ def get_duplicated_names(original_name):
                 duplicated_names.append(obj.name)
     return duplicated_names
 
+def merge_duplicate(context):
+    i = 0
+    bpy.ops.object.select_all(action='DESELECT')
+    objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
+    meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get()]
+	
+    while i < len(objects):
+        objName = objects[i]
+        duplicate_names = get_duplicated_names(objName)
+        for name in duplicate_names:
+            join_duplicate_objects(objName, name)
+        if(objName[-3:].isnumeric() and objName[-4] == "."):
+            obj1 = bpy.data.objects.get(objName)
+            if(obj1):
+                obj1.name = objName[:-4]
+                obj1.data.name = objName[:-4]
+        obj1 = bpy.data.objects.get(objName)
+        if(hasattr(obj1,"data")):
+            obj1.data.name = objName
+        # MeshName = meshes[i].name
+        # if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
+        #     meshes[i].name = MeshName[:-4]
+        i=i+1    
+    return True
+
 class merge_duplicate_objects(bpy.types.Operator):
     bl_idname = "mkw.objectmerge"
     bl_label = "Merge duplicate objects"
     bl_description = "Joins objects with duplicate names (*.001, *.002 etc.)"
     bl_options = {'UNDO'}
     def execute(self, context):
-        i = 0
-        bpy.ops.object.select_all(action='DESELECT')
-        objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
-        meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get()]
-		
-        while i < len(objects):
-            objName = objects[i]
-            duplicate_names = get_duplicated_names(objName)
-            for name in duplicate_names:
-                join_duplicate_objects(objName, name)
-            if(objName[-3:].isnumeric() and objName[-4] == "."):
-                obj1 = bpy.data.objects.get(objName)
-                if(obj1):
-                    obj1.name = objName[:-4]
-                    obj1.data.name = objName[:-4]
-            MeshName = meshes[i].name
-            if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
-                meshes[i].name = MeshName[:-4]
-            i=i+1
-        i = 0
-        objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
-        meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get()]
-		
-        while i < len(objects):
-            objName = objects[i]
-            duplicate_names = get_duplicated_names(objName)
-            for name in duplicate_names:
-                join_duplicate_objects(objName, name)
-            if(objName[-3:].isnumeric() and objName[-4] == "."):
-                obj1 = bpy.data.objects.get(objName)
-                if(obj1):
-                    obj1.name = objName[:-4]
-                    obj1.data.name = objName[:-4]
-            MeshName = meshes[i].name
-            if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
-                meshes[i].name = MeshName[:-4]
-            i=i+1
+        merge_duplicate(context)
+        merge_duplicate(context)
         
         return {'FINISHED'}
+
 
 class cursor_kmp (bpy.types.Operator):
     bl_idname = "kmpc.cursor"
@@ -2133,6 +2139,8 @@ matColors = [(1.0, 0.262251, 0, 0.6),
             (0.806953, 0.006, 0.016807, 0.6)]
 
 def checkFlagInName(name):
+    if(len(name) < 9):
+        return False
     try:
         i = int(name[-4:],16)
     except ValueError:
@@ -2562,7 +2570,7 @@ class BadPluginInstall(bpy.types.Panel):
         )
 
 
-classes = [PreferenceProperty, MyProperties, KMPUtilities, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities, CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
  
