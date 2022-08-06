@@ -20,7 +20,7 @@ from mathutils import Vector
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.app.handlers import persistent
 
-
+BLENDER_30 = bpy.app.version[0] >= 3
 lastselection = []
 setting1users = ["A2", "A3", "A6", "A8", "A9", "A10"]
 setting2users = ["A3", "A6", "A10"]
@@ -993,8 +993,8 @@ class kmp_came(bpy.types.Operator):
                                 keyframePoints = curve.keyframe_points
                                 for keyframe in keyframePoints:
                                     f = keyframe.co[0]
-                                    scene.frame_set(f)
-                                    fovkeyframes.append(f)
+                                    scene.frame_set(int(f))
+                                    fovkeyframes.append(int(f))
                                     cameraName = object.data.name
                                     fov = bpy.data.cameras[cameraName].angle
                                     fov = fov * 180 / 3.1415
@@ -1043,8 +1043,8 @@ class kmp_came(bpy.types.Operator):
                             for keyframe in keyframePoints:
                                 if(keyframe.co[0] not in vpkeyframes):  
                                     f = keyframe.co[0]
-                                    vpkeyframes.append(f)
-                                    scene.frame_set(f)
+                                    vpkeyframes.append(int(f))
+                                    scene.frame_set(int(f))
                                     loc = viewpoint.location
                                     position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                                     vpposs.append(position)
@@ -1139,7 +1139,7 @@ class keyframes_to_route(bpy.types.Operator):
                     if(i==0 and f!=0):
                         self.report({'WARNING'}, "First Keyframe should be at frame 0")
                         return {'CANCELLED'}
-                    keyframes.append(f)
+                    keyframes.append(int(f))
                     scene.frame_set(int(f))
                     loc = activeObject.location
                     position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
@@ -2185,7 +2185,6 @@ def update_scene_handler(scene):
     #9 - Enemy Point
     scale = mytool.scale
 
-
     if(loading == 0):
         currentFrameCount = scene.frame_end
 
@@ -2320,21 +2319,24 @@ def frame_change_handler(scene):
     scene = bpy.context.scene
     if(scene.frame_current == scene.frame_end):
         if(bpy.context.screen.is_animation_playing):
+            if BLENDER_30:
+                if(bpy.context.screen.is_scrubbing):
+                    return
             if(mytool.kmp_cameGoToNext == True):
                 if(activeObject.type == 'CAMERA'):
                     properties = activeObject.name.split("_")
                     checkName = "CAME_"+str(properties[3])+"_"
                     found = 0
                     for ob in bpy.context.scene.objects:
-
                         if(checkName in ob.name):
                             bpy.ops.object.select_all(action='DESELECT')
                             ob.select_set(True)
-                            bpy.context.view_layer.objects.active =ob
+                            bpy.context.view_layer.objects.active = ob
                             obproperties = ob.name.split("_")
                             scene.frame_end = int(obproperties[5])
                             scene.frame_current = 0
                             scene.camera = ob
+                            oldFrameCount= int(obproperties[5])
                             found = 1
                     if(found == 0):
                         if(mytool.kmp_cameStop):
@@ -2584,9 +2586,9 @@ def register():
     if directory.endswith("Blender-KMP-Utilities"):
         for cls in classes:
             bpy.utils.register_class(cls)
-        bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
         bpy.app.handlers.frame_change_post.append(frame_change_handler)
         bpy.app.handlers.load_post.append(load_file_handler)
+        bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
         bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
         if(wszstInstalled):
             bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
