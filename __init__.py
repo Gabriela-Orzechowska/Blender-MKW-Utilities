@@ -635,9 +635,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.7-2"
-latest_version = "v0.1.7-2"
-prerelease_version = "v0.1.7-2"
+current_version = "v0.1.7-3"
+latest_version = "v0.1.7-3"
+prerelease_version = "v0.1.7-3"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -715,7 +715,7 @@ class KMPUtilities(bpy.types.Panel):
             merge.enabled = False
         else:
             merge.enabled = True
-        #layout.operator("kmpe.load")
+        layout.operator("kmpe.load")
 
 class KCLSettings(bpy.types.Panel):
     bl_label = "KCL Settings"
@@ -2167,10 +2167,12 @@ def checkMaterial():
             mat.blend_method = 'BLEND' 
             
 oldFrameCount = 250
+from mathutils import Matrix
+casting = False
 @persistent
 def update_scene_handler(scene):
 
-    global lastselection, setting1users, setting2users, oldFrameCount
+    global lastselection, setting1users, setting2users, oldFrameCount, casting
     mytool = scene.kmpt
     activeObject = bpy.context.active_object
     #0 - AREA Header
