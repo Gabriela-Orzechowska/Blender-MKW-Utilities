@@ -1004,7 +1004,7 @@ class kmp_came(bpy.types.Operator):
                             self.report({"WARNING"}, "Camera {0}: First FOV keyframe needs to be at frame 0".format(properties[1]))
                             return {'CANCELLED'}
                         if(len(fovkeyframes) > 2):
-                            self.report({"WARNING"}, "Camera {0}: You can not have more that 2 FOV keyframes".format(properties[1]))
+                            self.report({"WARNING"}, "Camera {0}: You can not have more than 2 FOV keyframes".format(properties[1]))
                             return {'CANCELLED'}
                     else:
                         cameraName = object.data.name
@@ -1052,7 +1052,7 @@ class kmp_came(bpy.types.Operator):
                             self.report({"WARNING"}, "Camera {0}: First View Point keyframe needs to be at frame 0".format(properties[1]))
                             return {'CANCELLED'}
                         if(len(vpkeyframes) > 2):
-                            self.report({"WARNING"}, "Camera {0}: You can not have more that 2 View Point keyframes".format(properties[1]))
+                            self.report({"WARNING"}, "Camera {0}: You can not have more than 2 View Point keyframes".format(properties[1]))
                             return {'CANCELLED'}
                     else:
                         loc = viewpoint.location
