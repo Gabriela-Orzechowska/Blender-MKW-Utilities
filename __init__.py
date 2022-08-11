@@ -595,6 +595,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                     ("2", "Add type and variant label", ''),
                                                                     ("3", "Add to original", '')
                                                                     ],default="1")
+    kcl_autoSeparate : bpy.props.BoolProperty(name = "Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.")
 #endregion
 
 labelDict = {
@@ -635,9 +636,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.7-3"
-latest_version = "v0.1.7-3"
-prerelease_version = "v0.1.7-3"
+current_version = "v0.1.8-pre1"
+latest_version = "v0.1.8-pre1"
+prerelease_version = "v0.1.8-pre1"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -730,6 +731,7 @@ class KCLSettings(bpy.types.Panel):
         mytool = scene.kmpt
         layout.prop(mytool, "kcl_applyMaterial")
         layout.prop(mytool, "kcl_applyName")
+        layout.prop(mytool, "kcl_autoSeparate")
 
 class KCLUtilities(bpy.types.Panel):
     global finalFlag
@@ -1352,8 +1354,28 @@ class apply_kcl_flag(bpy.types.Operator):
     bl_description = "Apply current flag"
     
     def execute(self, context):
+        selection = []
+        lastActive = 0
+        current_mode = bpy.context.object.mode
+        wasInEditMode = False
         scene = context.scene
         mytool = scene.kmpt
+        if(current_mode == 'EDIT' and mytool.kcl_autoSeparate):
+            wasInEditMode = True
+            selection = context.selected_objects
+            lastActive = context.active_object
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            lastActive.select_set(True)
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.separate(type='SELECTED')
+            bpy.ops.object.mode_set(mode='OBJECT')
+            lastActive.select_set(False)
+            bpy.context.view_layer.objects.active = context.selected_objects[0]
+            selection.append(context.selected_objects[0])
+            print(selection)
+
+
         variantPropName = "kclVariant" + mytool.kcl_masterType
         z = '000'
         if(hasattr(mytool, variantPropName)):
@@ -1436,9 +1458,27 @@ class apply_kcl_flag(bpy.types.Operator):
             activeObject.name = properFlag
         activeObject.data.name = properFlag
         decodeFlag(properFlag[-4:])
+        if(wasInEditMode):
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            verts = [vert.co for vert in lastActive.data.vertices]
+            print(verts)
+            if not verts:
+                lastActive.select_set(True)
+                selection.remove(lastActive)
+                bpy.ops.object.delete()
+                bpy.ops.object.select_all(action='DESELECT')
+            for obj in selection:
+                obj.select_set(True)
+
+            if lastActive in selection:
+                bpy.context.view_layer.objects.active = lastActive
+            else:
+                bpy.context.view_layer.objects.active = selection[0]
+            bpy.ops.object.mode_set(mode='EDIT')
         if(mytool.kcl_applyMaterial == "1"):
             return {'FINISHED'}
-        context.active_object.data.materials.clear()
+        
         mat = bpy.data.materials.get(flagOnly)
         if mat is None:
             mat = bpy.data.materials.new(name=flagOnly)
@@ -1447,8 +1487,14 @@ class apply_kcl_flag(bpy.types.Operator):
             elif(mytool.kcl_applyMaterial == "2"):
                 color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable,mytool.kcl_shadow)
                 mat.diffuse_color = (color[0],color[1],color[2],1)
-        context.active_object.data.materials.append(mat)
-
+                print(selection)
+        if(wasInEditMode):
+            selection[-1].data.materials.clear()
+            selection[-1].data.materials.append(mat)
+        else:
+            context.active_object.data.materials.clear()
+            context.active_object.data.materials.append(mat)
+            
 
         return {'FINISHED'}
 
