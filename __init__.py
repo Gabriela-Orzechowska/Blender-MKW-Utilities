@@ -646,7 +646,7 @@ labelDict = {
 }
 
 current_version = "v0.1.8"
-latest_version = "v0.1.81"
+latest_version = "v0.1.8"
 prerelease_version = "v0.1.8"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
@@ -715,7 +715,7 @@ class KMPUtilities(bpy.types.Panel):
         layout.operator("kmpc.gobj")
         merge = layout.column()
         merge.operator("mkw.objectmerge")
-        merge.operator("mkw.matdel")
+        layout.operator("mkw.matdel")
         if(bpy.context.object is not None):
             current_mode = bpy.context.object.mode
         else:
