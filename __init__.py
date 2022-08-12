@@ -123,7 +123,15 @@ def updateCame(self, context):
             vpName = "CAMEVP_" + id
             oldVP.name = vpName
 
-
+def dummyKCLFunction(self,context):
+    a = 2
+    b = 1
+    c = 3
+    d = 7
+    active=context.active_object
+    if(active):
+        bpy.context.view_layer.objects.active=active
+    return
 
 class MyProperties(bpy.types.PropertyGroup):
     
@@ -133,7 +141,7 @@ class MyProperties(bpy.types.PropertyGroup):
     #
     #
     
-    scale : bpy.props.FloatProperty(name= "Export scale", min= 0.0001, max= 100000, default= 100, description= "Set scale at which your KMP will be exported")
+    scale : bpy.props.FloatProperty(name= "Export scale", min= 0.0001, max= 100000, default= 100, description= "Set scale at which your KMP will be exported",update=dummyKCLFunction)
  #region area_types  
 
     #AREA Section
@@ -262,12 +270,12 @@ class MyProperties(bpy.types.PropertyGroup):
                                                             ("T1D", "Moving Road 2 (0x1D)", ''),
                                                             ("T1E", "Special Wall (0x1E)", ''),
                                                             ("T1F", "Wall 5 (0x1F)", ''),
-                                                            ])
-    kcl_variant : bpy.props.IntProperty(name= "Variant", min=0, max=7, default= 0)
-    kcl_shadow : bpy.props.IntProperty(name= "Shadow", min=0, max=7, default= 0)
-    kcl_trickable : bpy.props.BoolProperty(name= "Trickable", default=False)
-    kcl_drivable : bpy.props.BoolProperty(name= "Drivable", default=True)
-    kcl_bounce : bpy.props.BoolProperty(name= "Soft Wall", default=False, description="Used to get rid of bean corners, use only on walls that meet road")
+                                                            ],update=dummyKCLFunction)
+    kcl_variant : bpy.props.IntProperty(name= "Variant", min=0, max=7, default= 0,update=dummyKCLFunction)
+    kcl_shadow : bpy.props.IntProperty(name= "Shadow", min=0, max=7, default= 0,update=dummyKCLFunction)
+    kcl_trickable : bpy.props.BoolProperty(name= "Trickable", default=False,update=dummyKCLFunction)
+    kcl_drivable : bpy.props.BoolProperty(name= "Drivable", default=True,update=dummyKCLFunction)
+    kcl_bounce : bpy.props.BoolProperty(name= "Soft Wall", default=False, description="Used to get rid of bean corners, use only on walls that meet road",update=dummyKCLFunction)
     
     kclVariantT00 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
                                                                 ("1", "Dirt with GFX (7.3 , 8.3)", ''),
@@ -276,7 +284,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Wood", ''),
                                                                 ("5", "Snow", ''),
                                                                 ("6", "Metal grate", ''),
-                                                                ("7", "Normal (Sound cuts off)", '')])
+                                                                ("7", "Normal (Sound cuts off)", '')],update=dummyKCLFunction)
     kclVariantT01 : bpy.props.EnumProperty(name = "Variant", items=[("0", "White sand", ''),
                                                                 ("1", "Dirt", ''),
                                                                 ("2", "Water", ''),
@@ -284,7 +292,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Grass", ''),
                                                                 ("5", "Yellow sand", ''),
                                                                 ("6", "Sand, no GFX", ''),
-                                                                ("7", "Dirt, no GFX", '')])
+                                                                ("7", "Dirt, no GFX", '')],update=dummyKCLFunction)
     kclVariantT02 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Orange Sand", ''),
                                                                 ("1", "Dirt", ''),
                                                                 ("2", "Water", ''),
@@ -292,7 +300,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Grass, lighter GFX", ''),
                                                                 ("5", "Carpet", ''),
                                                                 ("6", "Gravel", ''),
-                                                                ("7", "Gravel, different impact SFX", '')])
+                                                                ("7", "Gravel, different impact SFX", '')],update=dummyKCLFunction)
     kclVariantT03 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sand", ''),
                                                                 ("1", "Dirt", ''),
                                                                 ("2", "Mud", ''),
@@ -300,7 +308,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Grass", ''),
                                                                 ("5", "Sand, lighter GFX", ''),
                                                                 ("6", "Gravel, different impact SFX", ''),
-                                                                ("7", "Carpet", '')])
+                                                                ("7", "Carpet", '')],update=dummyKCLFunction)
     kclVariantT04 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sand", ''),
                                                                 ("1", "Dirt", ''),
                                                                 ("2", "Mud", ''),
@@ -308,17 +316,17 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Grass", ''),
                                                                 ("5", "Snow", ''),
                                                                 ("6", "Sand", ''),
-                                                                ("7", "Dirt, no GFX", '')])
+                                                                ("7", "Dirt, no GFX", '')],update=dummyKCLFunction)
     kclVariantT05 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Ice", ''),
                                                                 ("1", "Mud", ''),
                                                                 ("2", "Water", ''),
-                                                                ("6", "Normal road, different sound", '')])
+                                                                ("6", "Normal road, different sound", '')],update=dummyKCLFunction)
     kclVariantT06 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Default", ''),
                                                                 ("1", "(Check description)", 'if used in course.kcl and casino_roulette is nearby, the road slowly rotates everything around it counterclockwise. Used in Chain Chomp Wheel.'),
-                                                                ("2", "Unknown", '')])
+                                                                ("2", "Unknown", '')],update=dummyKCLFunction)
     kclVariantT07 : bpy.props.EnumProperty(name = "Variant", items=[("0", "2 flips", ''),
                                                                 ("1", "1 flip", ''),
-                                                                ("2", "No flips", '')]) 
+                                                                ("2", "No flips", '')],update=dummyKCLFunction) 
     kclVariantT08 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Stage 2, used in GBA Bowser Castle 3", ''),
                                                                 ("1", "Stage 3, used in SNES Ghost Valley 2", ''),
                                                                 ("2", "Stage 1, used in GBA Shy Guy Beach", ''),
@@ -326,14 +334,14 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Stage 5, Bouncy mushroom", ''),
                                                                 ("5", "Stage 4, used in Chain Chomp Wheel", ''),
                                                                 ("6", "Stage 2, used in DS Yoshi Falls and Funky Stadium", ''),
-                                                                ("7", "Stage 4, unused", '')])   
+                                                                ("7", "Stage 4, unused", '')],update=dummyKCLFunction)   
     kclVariantT09 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Unknown", ''),
                                                                 ("1", "Unknown", ''),
                                                                 ("2", "Used on metal grates", ''),
                                                                 ("3", "Unknown. Used on wooden paths/grass/mushrooms", ''),
                                                                 ("4", "Unknown", ''),
                                                                 ("5", "Unknown. Used on grass/bushes", ''),
-                                                                ("6", "Unknown", '')])   
+                                                                ("6", "Unknown", '')],update=dummyKCLFunction)   
     kclVariantT0A : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sand", ''),
                                                                 ("1", "Sand/Underwater", ''),
                                                                 ("2", "Unknown", ''),
@@ -341,13 +349,13 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Dirt", ''),
                                                                 ("5", "Grass", ''),
                                                                 ("6", "Wood", ''),
-                                                                ("7", "Unknown", '')])
+                                                                ("7", "Unknown", '')],update=dummyKCLFunction)
     kclVariantT0B : bpy.props.EnumProperty(name = "Variant", items=[("0", "Moving water that follows a route, pulling the player downwards.", 'Route settings:\n1 = speed\n2 = unknown'),
                                                                 ("1", "Moving water that follows a route and strongly pulls the player downwards, making it hard to drive.", 'Route settings:\n1 = speed\n2 = unknown'),
                                                                 ("2", "Moving water that follows a route from the start of the path to the end of it.", 'Route settings:\n1 = unknown\n2 = with value 1, the moving water direction rotates 90 degrees.\nIt also uses two settings in the AREA:\nAt 0x28 = acceleration/deceleration modifier\nAt 0x2A = route speed (speed at which the route pulls the player)\n (Supported by AREA plugin)'),
                                                                 ("3", "Moving water with no route.", 'It pulls you down and you cannot move from it'),
                                                                 ("4", "Moving asphalt", 'Route settings:\n1 = speed\n2 = unknown'),
-                                                                ("6", "Moving road", 'Route settings:\n1 = speed\n2 = unknown')])
+                                                                ("6", "Moving road", 'Route settings:\n1 = speed\n2 = unknown')],update=dummyKCLFunction)
     kclVariantT0C : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
                                                                 ("1", "Rock", ''),
                                                                 ("2", "Metal", ''),
@@ -355,16 +363,16 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Ice", ''),
                                                                 ("5", "Bush", ''),
                                                                 ("6", "Rope", ''),
-                                                                ("7", "Rubber", '')])
+                                                                ("7", "Rubber", '')],update=dummyKCLFunction)
     kclVariantT0D : bpy.props.EnumProperty(name = "Variant", items=[("0", "No spark and no character wall hit voice", ''),
-                                                                ("1", "Spark and character wall hit voice", '')])
+                                                                ("1", "Spark and character wall hit voice", '')],update=dummyKCLFunction)
     kclVariantT0E : bpy.props.EnumProperty(name = "Variant", items=[("0", "Unknown", ''),
                                                                 ("1", "Unknown. Used on rock walls", ''),
                                                                 ("2", "Unknown. Used on metal walls", ''),
                                                                 ("3", "Unknown", ''),
                                                                 ("4", "Unknown. Unused", ''),
                                                                 ("5", "Unknown. Used on grass/bushes", ''),
-                                                                ("6", "Unknown. Unused", '')])
+                                                                ("6", "Unknown. Unused", '')],update=dummyKCLFunction)
     kclVariantT0F : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
                                                                 ("1", "Rock", ''),
                                                                 ("2", "Metal", ''),
@@ -372,7 +380,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Ice", ''),
                                                                 ("5", "Bush", ''),
                                                                 ("6", "Rope", ''),
-                                                                ("7", "Rubber", '')])
+                                                                ("7", "Rubber", '')],update=dummyKCLFunction)
     kclVariantT10 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Air fall", ''),
                                                                 ("1", "Water", ''),
                                                                 ("2", "Lava", ''),
@@ -380,8 +388,8 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Lava, no GFX", ''),
                                                                 ("5", "Burning air fall", ''),
                                                                 ("6", "Quicksand", ''),
-                                                                ("7", "Short fall", '')])
-    kclVariant10Index : bpy.props.IntProperty(name = "KMP Index", default = 0, min = 0, max = 255) 
+                                                                ("7", "Short fall", '')],update=dummyKCLFunction)
+    kclVariant10Index : bpy.props.IntProperty(name = "KMP Index", default = 0, min = 0, max = 255,update=dummyKCLFunction) 
     kclVariantT11 : bpy.props.EnumProperty(name = "Variant", items=[("0", "To point 0", ''),
                                                                 ("1", "To point 1", ''),
                                                                 ("2", "To point 2", ''),
@@ -389,11 +397,11 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "To point 4", ''),
                                                                 ("5", "To point 5", ''),
                                                                 ("6", "To point 6", ''),
-                                                                ("7", "To point 7", '')])
-    kclVariant12Index : bpy.props.IntProperty(name = "AREA Index", default = 0, min = 0, max = 7) 
+                                                                ("7", "To point 7", '')],update=dummyKCLFunction)
+    kclVariant12Index : bpy.props.IntProperty(name = "AREA Index", default = 0, min = 0, max = 7,update=dummyKCLFunction) 
     kclVariantT13 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Default", ''),
                                                                 ("1", "Boost pad applied", ''),
-                                                                ("2", "Unknown", '')])
+                                                                ("2", "Unknown", '')],update=dummyKCLFunction)
     kclVariantT14 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
                                                                 ("1", "Rock", ''),
                                                                 ("2", "Metal", ''),
@@ -401,14 +409,14 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Ice", ''),
                                                                 ("5", "Bush", ''),
                                                                 ("6", "Rope", ''),
-                                                                ("7", "Rubber", '')])
+                                                                ("7", "Rubber", '')],update=dummyKCLFunction)
     kclVariantT15 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Moves west with BeltCrossing and escalator. ", ''),
                                                                 ("1", "Moves east with BeltCrossing and west with escalator.", ''),
                                                                 ("2", "Moves east with BeltEasy", ''),
                                                                 ("3", "Moves west with BeltEasy", ''),
                                                                 ("4", "Rotates around BeltCurveA clockwise", ''),
                                                                 ("5", "Rotates around BeltCurveA counterclockwise", ''),
-                                                                ("6", "Unknown", '')])
+                                                                ("6", "Unknown", '')],update=dummyKCLFunction)
     kclVariantT16 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Wood", ''),
                                                                 ("1", "Gravel, different impact SFX.", ''),
                                                                 ("2", "Carpet", ''),
@@ -416,7 +424,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Sand, different impact and drift SFX, no GFX", ''),
                                                                 ("5", "Normal road, SFX on slot 4.4", ''),
                                                                 ("6", "Normal road", ''),
-                                                                ("7", "Mud with GFX", '')])
+                                                                ("7", "Mud with GFX", '')],update=dummyKCLFunction)
     kclVariantT17 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal road, different sound", ''),
                                                                 ("1", "Carpet", ''),
                                                                 ("2", "Grass, GFX on 8.3", ''),
@@ -424,7 +432,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Grass", ''),
                                                                 ("5", "Glass road with SFX", ''),
                                                                 ("6", "Dirt (unused)", ''),
-                                                                ("7", "Normal road, SFX on slot 4.4", '')])
+                                                                ("7", "Normal road, SFX on slot 4.4", '')],update=dummyKCLFunction)
     
     kclVariantT18Circuits : bpy.props.EnumProperty(name = "Track", items=[("11", "Luigi Circuit", ''),
                                                                 ("13", "Mushroom Gorge", ''),
@@ -447,13 +455,13 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("73", "N64 DK's Jungle Parkway", ''),
                                                                 ("74", "GCN Mario Circuit", ''),
                                                                 ("83", "GCN DK Mountain", ''),
-                                                                ("84", "N64 Bowser's Caslte", '')])
+                                                                ("84", "N64 Bowser's Caslte", '')],update=dummyKCLFunction)
     kclVariantT1811 : bpy.props.EnumProperty(name = "Variant", items=[("0", "No audience noise", ''),
                                                 ("1", "Soft audience noise", ''),
                                                 ("2", "Audience noise. The race starts with this sound", ''),
-                                                ("3", "Lound audience noice", '')])
+                                                ("3", "Lound audience noice", '')],update=dummyKCLFunction)
     kclVariantT1813 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate all", ''),
-                                                ("3", "Enable cave SFX + echo", '')])
+                                                ("3", "Enable cave SFX + echo", '')],update=dummyKCLFunction)
     kclVariantT1814 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Sounds off", ''),
                                                 ("1", "Hydraulic press area", ''),
                                                 ("2", "Shipping dock area", ''),
@@ -461,54 +469,54 @@ class MyProperties(bpy.types.PropertyGroup):
                                                 ("4", "Steam room", ''),
                                                 ("5", "Restart music at beginning", ''),
                                                 ("6", "Bulldozer area", ''),
-                                                ("7", "Audience area", '')])
+                                                ("7", "Audience area", '')],update=dummyKCLFunction)
     kclVariantT1821 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivates echo", ''),
                                                 ("1", "Weak echo", ''),
-                                                ("2", "Loud echo", '')])
+                                                ("2", "Loud echo", '')],update=dummyKCLFunction)
     kclVariantT1822 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Resets all sound triggers. Shopping mall ambience requires this to play", ''),
                                                 ("1", "Weak shopping mall ambience + disables echo", ''),
                                                 ("2", "Loud shopping mall ambience + strong echo", ''),
                                                 ("3", "Resets all sound triggers and prevents shopping mall ambience from playing until 0 is hit again", ''),
                                                 ("4", "Loud shopping mall ambience + disables echo", ''),
-                                                ("5", "Same as 3?", '')])
+                                                ("5", "Same as 3?", '')],update=dummyKCLFunction)
     kclVariantT1823 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivates cheering", ''),
                                                 ("1", "Weak cheering ambience", ''),
                                                 ("2", "Loud cheering ambience", ''),
                                                 ("3", "Loudest cheering ambience.", ''),
-                                                ("4", "Enables cheering when going off half-pipe ramps", '')])
+                                                ("4", "Enables cheering when going off half-pipe ramps", '')],update=dummyKCLFunction)
     kclVariantT1824 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Music change (outside)", ''),
                                                 ("1", "Music change (cave) + gentle echo", ''),
                                                 ("2", "Echo", ''),
-                                                ("3", "Strong echo", '')])
+                                                ("3", "Strong echo", '')],update=dummyKCLFunction)
     kclVariantT1831 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate echo", ''),
                                                 ("1", "Weak echo", ''),
-                                                ("2", "Echo", '')])
+                                                ("2", "Echo", '')],update=dummyKCLFunction)
     kclVariantT1832 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Music change (normal)", ''),
                                                 ("1", "Music change (normal), echo", ''),
                                                 ("2", "Stronger echo", ''),
                                                 ("3", "Music change (underwater), water ambience enabled when entering from 0, 5 or 6, diabled otherwise", ''),
                                                 ("4", "Strongest echo, water ambience enabled", ''),
                                                 ("5", "Music change (normal), strongest echo, water ambience enabled when entering from 3", ''),
-                                                ("6", "Music change (riverside)", '')])
+                                                ("6", "Music change (riverside)", '')],update=dummyKCLFunction)
     kclVariantT1833 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate echo and wind ambience", ''),
                                                 ("1", "No effect", ''),
                                                 ("2", "Weak echo", ''),
                                                 ("3", "Loud echo", ''),
-                                                ("4", "Enables wind ambience, deactivates echo", '')])
+                                                ("4", "Enables wind ambience, deactivates echo", '')],update=dummyKCLFunction)
     kclVariantT1834 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate echo", ''),
                                                 ("1", "Weak echo, toggles after two seconds", ''),
                                                 ("2", "Loud echo, toggles after one second", ''),
-                                                ("3", "Loud echo, toggles after two seconds", '')])
+                                                ("3", "Loud echo, toggles after two seconds", '')],update=dummyKCLFunction)
     kclVariantT1841 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Music change (normal)", ''),
                                                 ("1", "Music change (indoors, where the bats come from the sides)", ''),
                                                 ("2", "Music change (indoors, where the half-pipes are)", ''),
-                                                ("3", "Music change (indoors, where the Pokeys are)", '')])
+                                                ("3", "Music change (indoors, where the Pokeys are)", '')],update=dummyKCLFunction)
     kclVariantT1842 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate city ambience, default music", ''),
                                                 ("1", "Stage 2, weak city ambience, adds flute to music", ''),
                                                 ("2", "Stage 4, louder city ambience, disable echo", ''),
                                                 ("3", "Stage 5, loudest city ambience, disable echo", ''),
                                                 ("4", "Stage 3, loud city ambience, enable echo", ''),
-                                                ("5", "Stage 1, weakest city ambience, enable echo", '')])
+                                                ("5", "Stage 1, weakest city ambience, enable echo", '')],update=dummyKCLFunction)
     kclVariantT1843 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Disable one-time use sound trigger (like Bowser's howl)", ''),
                                                 ("1", "Bowser's howl + echo. Put 7 at the end of a turn to be able to reuse Bowser's howl", ''),
                                                 ("2", "Sound distortion + echo", ''),
@@ -516,21 +524,21 @@ class MyProperties(bpy.types.PropertyGroup):
                                                 ("4", "Add drums + echo on music + koopaBall/koopaFigure SFX", ''),
                                                 ("5", "Deactivate koopaBall/koopaFigure SFX", ''),
                                                 ("6", "Add drums without echo", ''),
-                                                ("7", "Back to normal. Allow reuse for one-time use sound trigger", '')])
+                                                ("7", "Back to normal. Allow reuse for one-time use sound trigger", '')],update=dummyKCLFunction)
     kclVariantT1844 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivator", ''),
                                                 ("1", "Gate sound 1 (add a deactivator before and after if you use only one gate)", ''),
                                                 ("2", "Star ring sound 1", ''),
                                                 ("3", "Star ring sound 2", ''),
                                                 ("4", "Star ring sound 3", ''),
                                                 ("5", "Star ring sound 4", ''),
-                                                ("6", "Tunnel sound (add a deactivator to stop it)", '')])
+                                                ("6", "Tunnel sound (add a deactivator to stop it)", '')],update=dummyKCLFunction)
     kclVariantT1854 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivates cheering", ''),
                                                 ("1", "Loud cheering", ''),
                                                 ("2", "Louder cheering", ''),
-                                                ("3", "Weak cheering", '')])
+                                                ("3", "Weak cheering", '')],update=dummyKCLFunction)
     kclVariantT1861 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate all", ''),
                                                 ("1", "Cave echo", ''),
-                                                ("2", "Cave SFX", '')])
+                                                ("2", "Cave SFX", '')],update=dummyKCLFunction)
     kclVariantT1863 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Unknown. In a position such that a player may collide with this trigger if they complete the dock shortcut", ''),
                                                 ("1", "Very, very distant whistles, cheers and chatter from spectators", ''),
                                                 ("2", "Very distant whistles, cheers and chatter from spectators", ''),
@@ -538,24 +546,24 @@ class MyProperties(bpy.types.PropertyGroup):
                                                 ("4", "Whistles, cheers and chatter from spectators", ''),
                                                 ("5", "Single wind gust just before the dock section", ''),
                                                 ("6", "No spectator ambience", ''),
-                                                ("7", "The same as 6? Used between triggers of type 6", '')])
+                                                ("7", "The same as 6? Used between triggers of type 6", '')],update=dummyKCLFunction)
     kclVariantT1873 : bpy.props.EnumProperty(name = "Variant", items=[("0", "No jungle ambience. Used near water sections", ''),
                                                 ("1", "Jungle ambience (bird squawks, insect hum, animal roar). Used as a buffer between types 0 and 2", ''),
                                                 ("2", "Intense jungle ambience, used in areas of deep forest", ''),
-                                                ("3", "Cave ambience", '')])
+                                                ("3", "Cave ambience", '')],update=dummyKCLFunction)
     kclVariantT1874 : bpy.props.EnumProperty(name = "Variant", items=[("0", "No echo", ''),
                                                 ("1", "Weak echo", ''),
-                                                ("2", "Loud echo", '')])
+                                                ("2", "Loud echo", '')],update=dummyKCLFunction)
     kclVariantT1883 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Deactivate all", ''),
                                                 ("1", "Jungle SFX (animals)", ''),
-                                                ("2", "Water + wind SFX", '')])
+                                                ("2", "Water + wind SFX", '')],update=dummyKCLFunction)
     kclVariantT1884 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Disable one-time use sound trigger (like Bowser's howl)", ''),
                                                 ("1", "Turns lava SFX off + disables echo", ''),
                                                 ("2", "Bowser's howl. Put 0 at the end of a turn to be able to reuse this", ''),
                                                 ("3", "Turns lava SFX off", ''),
                                                 ("4", "Turns lava SFX off + echo", ''),
                                                 ("5", "Echo", ''),
-                                                ("6", "Strong echo", '')])
+                                                ("6", "Strong echo", '')],update=dummyKCLFunction)
 
     kclVariantT1A : bpy.props.EnumProperty(name = "Variant", items=[("0", "BRSTM reset", ''),
                                                                 ("1", "Enable shadow effect", ''),
@@ -564,7 +572,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Half-pipe cancellation", ''),
                                                                 ("5", "Coin despawner", ''),
                                                                 ("6", "Smoke effect on the player when going through dark smoke (truckChimSmkW)", ''),
-                                                                ("7", "Unknown", '')])
+                                                                ("7", "Unknown", '')],update=dummyKCLFunction)
     kclVariantT1D : bpy.props.EnumProperty(name = "Variant", items=[("0", "Carpet, different impact SFX", ''),
                                                                 ("1", "Normal road, different sound, different impact SFX", ''),
                                                                 ("2", "Normal road", ''),
@@ -572,7 +580,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Carpet", ''),
                                                                 ("5", "No sound, star crash impact SFX (requires starGate for SFX)", ''),
                                                                 ("6", "Sand", ''),
-                                                                ("7", "Dirt", '')])
+                                                                ("7", "Dirt", '')],update=dummyKCLFunction)
     kclVariantT1E : bpy.props.EnumProperty(name = "Variant", items=[("0", "Cacti", ''),
                                                                 ("1", "Unknown (rubber wall?)", ''),
                                                                 ("2", "Unknown (rubber wall?)", ''),
@@ -580,22 +588,23 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Unknown, SFX on 4.4", ''),
                                                                 ("5", "Unknown", ''),
                                                                 ("6", "Unknown", ''),
-                                                                ("7", "Unknown", '')])
+                                                                ("7", "Unknown", '')],update=dummyKCLFunction)
     kclVariantT1F : bpy.props.EnumProperty(name = "Variant", items=[("0", "Fast Wall, Bump", ''),
-                                                                ("2", "Slow Wall, No Effect", '')])    
+                                                                ("2", "Slow Wall, No Effect", '')],update=dummyKCLFunction)    
 
     kclFinalFlag : bpy.props.StringProperty(name = "Flag")                                                            
 #endregion
  #region kcl_settings
     kcl_applyMaterial : bpy.props.EnumProperty(name = "Material", items=[("0", "Random color", ''),
                                                                         ("2", "Use custom scheme", ''),
-                                                                        ("1", "Keep original", '')],default="2")
+                                                                        ("1", "Keep original", '')],default="2",update=dummyKCLFunction)
     kcl_applyName : bpy.props.EnumProperty(name = "Name", items=[("0", "Flag only", ''),
                                                                     ("1", "Add type label", ''),
                                                                     ("2", "Add type and variant label", ''),
                                                                     ("3", "Add to original", '')
-                                                                    ],default="1")
-    kcl_autoSeparate : bpy.props.BoolProperty(name = "Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.")
+                                                                    ],default="1",update=dummyKCLFunction)
+    kcl_autoSeparate : bpy.props.BoolProperty(name = "(Beta) Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.",update=dummyKCLFunction)
+    kcl_autoMerge : bpy.props.BoolProperty(name = "(Beta) Auto-merge objects", default=True, description="Automatically merge objects with same flags.",update=dummyKCLFunction)
 #endregion
 
 labelDict = {
@@ -636,9 +645,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.8-pre1"
-latest_version = "v0.1.8-pre1"
-prerelease_version = "v0.1.8-pre1"
+current_version = "v0.1.8"
+latest_version = "v0.1.81"
+prerelease_version = "v0.1.8"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -731,6 +740,7 @@ class KCLSettings(bpy.types.Panel):
         mytool = scene.kmpt
         layout.prop(mytool, "kcl_applyMaterial")
         layout.prop(mytool, "kcl_applyName")
+        layout.prop(mytool, "kcl_autoMerge")
         layout.prop(mytool, "kcl_autoSeparate")
 
 class KCLUtilities(bpy.types.Panel):
@@ -784,6 +794,7 @@ class KCLUtilities(bpy.types.Panel):
             layout.prop(mytool, "kcl_bounce") 
         
         layout.operator("kclc.applyflag")
+        layout.operator("kclc.addblight")
         if(wszstInstalled):
             layout.operator("kclc.export")
         
@@ -1195,8 +1206,8 @@ class timeline_to_route(bpy.types.Operator):
             f = i*interval
             if(i == resolution-1):
                 f = scene.frame_end
-            scene.frame_set(f)
-            keyframes.append(f)
+            scene.frame_set(int(f))
+            keyframes.append(int(f))
             loc = activeObject.location
             position = [math.floor(loc[0] * scale),math.floor(loc[1] * scale),math.floor(loc[2] * scale)]
             locations.append(position)
@@ -1355,6 +1366,8 @@ class apply_kcl_flag(bpy.types.Operator):
     
     def execute(self, context):
         selection = []
+        oldSelection = []
+        separated = []
         lastActive = 0
         current_mode = bpy.context.object.mode
         wasInEditMode = False
@@ -1362,18 +1375,20 @@ class apply_kcl_flag(bpy.types.Operator):
         mytool = scene.kmpt
         if(current_mode == 'EDIT' and mytool.kcl_autoSeparate):
             wasInEditMode = True
-            selection = context.selected_objects
+            oldSelection = context.selected_objects
             lastActive = context.active_object
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
-            lastActive.select_set(True)
-            bpy.ops.object.mode_set(mode='EDIT')
+            if(lastActive not in oldSelection):
+                oldSelection.append(lastActive)
             bpy.ops.mesh.separate(type='SELECTED')
             bpy.ops.object.mode_set(mode='OBJECT')
+            selection = context.selected_objects
+            if(lastActive not in selection):
+                selection.append(lastActive)
             lastActive.select_set(False)
+            separated = [i for i in selection if i not in oldSelection]
             bpy.context.view_layer.objects.active = context.selected_objects[0]
             selection.append(context.selected_objects[0])
-            print(selection)
+            print(separated)
 
 
         variantPropName = "kclVariant" + mytool.kcl_masterType
@@ -1454,15 +1469,149 @@ class apply_kcl_flag(bpy.types.Operator):
             if(aobjName[-3:].isnumeric() and aobjName[-4] == "."):
                 aobjName = aobjName[:-4]
             properFlag = aobjName + properFlag
-        if(mytool.kcl_applyName is not "4"):
-            activeObject.name = properFlag
-        activeObject.data.name = properFlag
+        if(wasInEditMode):
+            for i in separated:
+                i.name = properFlag
+                i.data.name = properFlag
+        else:
+            if(activeObject in context.selected_objects):
+                activeObject.name = properFlag
+                activeObject.data.name = properFlag
         decodeFlag(properFlag[-4:])
         if(wasInEditMode):
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
+            for i in selection:
+                bpy.ops.object.select_all(action='DESELECT')
+                try:
+                    verts = [vert.co for vert in i.data.vertices]
+                    if not verts:
+                        i.select_set(True)
+                        selection.remove(i)
+                        bpy.ops.object.delete()
+                        bpy.ops.object.select_all(action='DESELECT')
+                except ReferenceError:
+                    pass
+            for obj in selection:
+                try:
+                    obj.select_set(True)
+                except ReferenceError:
+                    pass
+            if lastActive in selection:
+                bpy.context.view_layer.objects.active = lastActive
+            else:
+                bpy.context.view_layer.objects.active = selection[0]
+            bpy.ops.object.mode_set(mode='EDIT')
+        if(mytool.kcl_applyMaterial == "1"):
+            if(mytool.kcl_autoMerge):
+                bpy.ops.object.mode_set(mode='OBJECT')
+                aselection=context.selected_objects
+                merge_duplicate(context)
+                for obj in aselection:
+                    try:
+                        obj.select_set(True)
+                    except ReferenceError:
+                        pass
+                if(wasInEditMode):
+                    bpy.ops.object.mode_set(mode='EDIT')
+
+            return {'FINISHED'}
+        
+        mat = bpy.data.materials.get(flagOnly)
+        if mat is None:
+            mat = bpy.data.materials.new(name=flagOnly)
+            if(mytool.kcl_applyMaterial == "0"):
+                mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+            elif(mytool.kcl_applyMaterial == "2"):
+                color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable,mytool.kcl_shadow)
+                mat.diffuse_color = (color[0],color[1],color[2],1)
+                print(selection)
+        if(wasInEditMode):
+            for i in separated:
+                if i:
+                    i.data.materials.clear()
+                    i.data.materials.append(mat)
+        else:
+            context.active_object.data.materials.clear()
+            context.active_object.data.materials.append(mat)
+        if(mytool.kcl_autoMerge):
+            bpy.ops.object.mode_set(mode='OBJECT')
+            aselection=context.selected_objects
+            merge_duplicate(context)
+            for obj in aselection:
+                try:
+                    obj.select_set(True)
+                except ReferenceError:
+                    pass
+            if(wasInEditMode):
+                bpy.ops.object.mode_set(mode='EDIT')
+
+        return {'FINISHED'}
+
+class add_blight(bpy.types.Operator):
+    bl_idname = "kclc.addblight"
+    bl_label = "(Beta) Add BLIGHT"
+    bl_options = {'UNDO'}
+    bl_description = "Adds BLIGHT (Shadow) without changing other flag bits"
+    def execute(self, context):
+        selection = []
+        oldSelection = []
+        separated = []
+        lastActive = 0
+        current_mode = bpy.context.object.mode
+        active = context.active_object
+        newFlag = ""
+        wasInEditMode = False
+        scene = context.scene
+        mytool = scene.kmpt
+        if(current_mode == 'EDIT' and mytool.kcl_autoSeparate):
+            wasInEditMode = True
+            oldSelection = context.selected_objects
+            lastActive = context.active_object
+            if(lastActive not in oldSelection):
+                oldSelection.append(lastActive)
+            for i in oldSelection:
+                if not checkFlagInName(i.name):
+                    self.report({"WARNING"}, "At least one of selected objects does not have proper flag.")
+                    return {'CANCELLED'}      
+
+            bpy.ops.mesh.separate(type='SELECTED')
+            bpy.ops.object.mode_set(mode='OBJECT')
+            selection = context.selected_objects
+            if(lastActive not in selection):
+                selection.append(lastActive)
+            lastActive.select_set(False)
+            separated = [i for i in selection if i not in oldSelection]
+            bpy.context.view_layer.objects.active = context.selected_objects[0]
+            selection.append(context.selected_objects[0])
+            print(separated)
+        elif not checkFlagInName(active.name):
+            self.report({"WARNING"}, "Object does have proper flag")
+            return {'CANCELLED'}
+
+        if(wasInEditMode):
+            for i in separated:
+                bits = i.name[-8:-4]
+                bits = bin(int(bits, 16))[2:].zfill(16)
+                bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3)+bits[8:]
+                newFlag = hex(int(bits,2))[2:].zfill(4)
+                i.name = i.name[:-8] + newFlag
+                i.data.name = i.name
+        else:
+            i = active
+            print(i.name)
+            bits = i.name[-4:]
+            bits = bin(int(bits, 16))[2:].zfill(16)
+            bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3)+bits[8:]
+            newFlag = hex(int(bits,2))[2:].zfill(4)
+            i.name = i.name[:-4] + newFlag
+            i.data.name = i.name
+
+
+        if(wasInEditMode):
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
             verts = [vert.co for vert in lastActive.data.vertices]
-            print(verts)
             if not verts:
                 lastActive.select_set(True)
                 selection.remove(lastActive)
@@ -1477,27 +1626,61 @@ class apply_kcl_flag(bpy.types.Operator):
                 bpy.context.view_layer.objects.active = selection[0]
             bpy.ops.object.mode_set(mode='EDIT')
         if(mytool.kcl_applyMaterial == "1"):
+            if(mytool.kcl_autoMerge):
+                bpy.ops.object.mode_set(mode='OBJECT')
+                aselection=context.selected_objects
+                merge_duplicate(context)
+                for obj in aselection:
+                    try:
+                        obj.select_set(True)
+                    except ReferenceError:
+                        pass
+                if(wasInEditMode):
+                    bpy.ops.object.mode_set(mode='EDIT')
+
             return {'FINISHED'}
-        
-        mat = bpy.data.materials.get(flagOnly)
-        if mat is None:
-            mat = bpy.data.materials.new(name=flagOnly)
-            if(mytool.kcl_applyMaterial == "0"):
-                mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
-            elif(mytool.kcl_applyMaterial == "2"):
-                color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable,mytool.kcl_shadow)
-                mat.diffuse_color = (color[0],color[1],color[2],1)
-                print(selection)
         if(wasInEditMode):
-            selection[-1].data.materials.clear()
-            selection[-1].data.materials.append(mat)
+            for i in separated:
+                flagOnly = i.name[-9:]
+                print(flagOnly[-4:])
+                print(flagOnly)
+                mat = bpy.data.materials.get(flagOnly)
+                if mat is None:
+                    mat = bpy.data.materials.new(name=flagOnly)
+                    if(mytool.kcl_applyMaterial == "0"):
+                        mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+                    elif(mytool.kcl_applyMaterial == "2"):
+                        _kclType,_variant,_shadow,_trickable,_drivable,_softWall = decodeFlag(flagOnly[-4:])
+                        color = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
+                        mat.diffuse_color = (color[0],color[1],color[2],1)
+                i.data.materials.clear()
+                i.data.materials.append(mat)
         else:
+            flagOnly = active.name[-9:]
+            mat = bpy.data.materials.get(flagOnly)
+            if mat is None:
+                mat = bpy.data.materials.new(name=flagOnly)
+                if(mytool.kcl_applyMaterial == "0"):
+                    mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+                elif(mytool.kcl_applyMaterial == "2"):
+                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall = decodeFlag(flagOnly[-4:])
+                    color = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
+                    mat.diffuse_color = (color[0],color[1],color[2],1)
             context.active_object.data.materials.clear()
             context.active_object.data.materials.append(mat)
-            
-
+        if(mytool.kcl_autoMerge):
+            bpy.ops.object.mode_set(mode='OBJECT')
+            aselection=context.selected_objects
+            merge_duplicate(context)
+            for obj in aselection:
+                try:
+                    obj.select_set(True)
+                except ReferenceError:
+                    pass
+            if(wasInEditMode):
+                bpy.ops.object.mode_set(mode='EDIT')
         return {'FINISHED'}
-
+        
 def decodeFlag(bareFlag):
     binary = bin(int(bareFlag, 16))[2:].zfill(16)
     kclType = "T"+hex(int(binary[-5:],2))[2:].zfill(2).upper()
@@ -1555,8 +1738,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     # kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
     kclExportQuality : bpy.props.EnumProperty(name="File Quality", items=[("SMALL","Small","Creates relative small KCL file. Might help with lag. (Don't use if you want to use speedmod above 1.5)"),
-                                                                                    ("MEDIUM","Medium","Default KCL encoding values."),
-                                                                                    ("CHARY","Chary"," Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails.")], default="MEDIUM")
+                                                                        ("MEDIUM","Medium","Default KCL encoding values."),
+                                                                        ("CHARY","Chary"," Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails.")], default="MEDIUM")
     kclExportMerge : bpy.props.BoolProperty(name="Merge and remove .001s", default=True)
     kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
@@ -2624,7 +2807,7 @@ class BadPluginInstall(bpy.types.Panel):
         )
 
 
-classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
  
