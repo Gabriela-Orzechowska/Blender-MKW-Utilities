@@ -1554,12 +1554,15 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     )
     # kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
+    kclExportQuality : bpy.props.EnumProperty(name="File Quality", items=[("SMALL","Small","Creates relative small KCL file. Might help with lag. (Don't use if you want to use speedmod above 1.5)"),
+                                                                                    ("MEDIUM","Medium","Default KCL encoding values."),
+                                                                                    ("CHARY","Chary"," Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails.")], default="MEDIUM")
     kclExportMerge : bpy.props.BoolProperty(name="Merge and remove .001s", default=True)
     kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
     kclExportLowerDegree : bpy.props.IntProperty(name="Degree", default= 45)
-    kclExportWeakWalls : bpy.props.BoolProperty(name="Weak Walls")
+    kclExportWeakWalls : bpy.props.BoolProperty(name="Soften Walls")
     kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
     kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
     kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
@@ -1574,10 +1577,10 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             if(activeObject.type == "MESH"):
                 bpy.ops.object.mode_set(mode='OBJECT')
         
-        
+        selection = context.selected_objects        
         if(self.kclExportMerge):
             merge_duplicate(context)
-        selection = context.selected_objects
+
         objectsToExport = []
         # if(self.kclExportSelection):
         #     objectsToExport = selection
@@ -1607,7 +1610,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         wkclt += ("RMFACEDOWN," if self.kclExportRemoveFacedown else "")
         wkclt += ("RMFACEUP," if self.kclExportRemoveFaceup else "")
         wkclt += ("CONVFACEUP," if self.kclExportConvFaceup else "")
-        
+        wkclt += self.kclExportQuality
+        print(wkclt)
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         if (self.kclExportLowerWalls):
