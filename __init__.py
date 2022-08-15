@@ -725,7 +725,7 @@ class KMPUtilities(bpy.types.Panel):
             merge.enabled = False
         else:
             merge.enabled = True
-        layout.operator("kmpe.load")
+        #layout.operator("kmpe.load")
 
 class KCLSettings(bpy.types.Panel):
     bl_label = "KCL Settings"
