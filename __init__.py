@@ -645,9 +645,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.8"
-latest_version = "v0.1.8"
-prerelease_version = "v0.1.8"
+current_version = "v0.1.8-2"
+latest_version = "v0.1.8-2"
+prerelease_version = "v0.1.8-2"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -761,7 +761,7 @@ class KCLUtilities(bpy.types.Panel):
         
         
         if(wszstInstalled):
-            layout.operator("kclc.load")
+            layout.operator("kcl.load")
         else:
             _label_multiline(
                 context=context,
@@ -793,10 +793,10 @@ class KCLUtilities(bpy.types.Panel):
         if(mytool.kcl_masterType in kcl_wallTypes):
             layout.prop(mytool, "kcl_bounce") 
         
-        layout.operator("kclc.applyflag")
-        layout.operator("kclc.addblight")
+        layout.operator("kcl.applyflag")
+        layout.operator("kcl.addblight")
         if(wszstInstalled):
-            layout.operator("kclc.export")
+            layout.operator("kcl.export")
         
 class AREAUtilities(bpy.types.Panel):
     bl_label = "AREA Utilities"
@@ -1359,7 +1359,7 @@ finalFlag = ''
 properFlag = ''
 class apply_kcl_flag(bpy.types.Operator):
     global kcl_typeATypes, finalFlag, kcl_wallTypes, properFlag
-    bl_idname = "kclc.applyflag"
+    bl_idname = "kcl.applyflag"
     bl_label = "Apply Flag"
     bl_options = {'UNDO'}
     bl_description = "Apply current flag"
@@ -1549,7 +1549,7 @@ class apply_kcl_flag(bpy.types.Operator):
         return {'FINISHED'}
 
 class add_blight(bpy.types.Operator):
-    bl_idname = "kclc.addblight"
+    bl_idname = "kcl.addblight"
     bl_label = "(Beta) Add BLIGHT"
     bl_options = {'UNDO'}
     bl_description = "Adds BLIGHT (Shadow) without changing other flag bits"
@@ -1726,7 +1726,7 @@ def getSchemeColor(context,kclType,trickable,drivable,shadow):
     return color
 
 class export_kcl_file(bpy.types.Operator, ExportHelper):
-    bl_idname = "kclc.export"
+    bl_idname = "kcl.export"
     bl_label = "Export KCL"
     bl_options = {'UNDO'}
     filename_ext = ".kcl"
@@ -1779,7 +1779,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             obj.select_set(True)
 
         
-        selectionBool = False
+        selectionBool = True
         # if(self.kclExportSelection or self.kclExportFlagOnly):
         #     selectionBool = True
 
@@ -1808,7 +1808,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 class import_kcl_file(bpy.types.Operator, ImportHelper):
-    bl_idname = "kclc.load"
+    bl_idname = "kcl.load"
     bl_label = "Import KCL file"       
     filename_ext = '.kcl'
     bl_options = {'UNDO'}
@@ -1928,9 +1928,9 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
 def export_autodesk_dae_button(self, context):
     self.layout.operator("export.autodesk_dae", text="Autodesk Collada (.dae)")
 def export_kcl_button(self, context):
-    self.layout.operator("kclc.export", text="KCL")
+    self.layout.operator("kcl.export", text="KCL")
 def import_kcl_button(self, context):
-    self.layout.operator("kclc.load", text="KCL")
+    self.layout.operator("kcl.load", text="KCL")
 
 def join_duplicate_objects(main_object, duplicate_object):
     bpy.ops.object.select_all(action='DESELECT')
@@ -2810,7 +2810,7 @@ class BadPluginInstall(bpy.types.Panel):
 classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
- 
+addon_keymaps = []
 def register():
     global wszstInstalled
     wszst = os.popen('wszst version').read()
@@ -2833,6 +2833,14 @@ def register():
     else:
         bpy.utils.register_class(BadPluginInstall)
 
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.addon
+    if kc:
+        km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+        kmi = km.keymap_items.new("kcl.applyflag", type='F', value='PRESS', shift=True)
+        addon_keymaps.append((km, kmi))
+        kmi = km.keymap_items.new("kcl.addblight", type='W', value='PRESS', ctrl=True)
+        addon_keymaps.append((km, kmi))
  
 def unregister():
     for cls in classes:
@@ -2852,7 +2860,11 @@ def unregister():
     except RuntimeError:
         pass
     del bpy.types.Scene.kmpt
- 
+    
+    for km, kmi in addon_keymaps:
+        km.keymap_items.remove(kmi)
+    addon_keymaps.clear()
+
  
 if __name__ == "__main__":
     register()
