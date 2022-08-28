@@ -17,8 +17,22 @@ import struct
 import requests
 import webbrowser
 from mathutils import Vector
-from bpy_extras.io_utils import ImportHelper, ExportHelper
+import bpy
+from bpy.props import (
+    BoolProperty,
+    FloatProperty,
+    StringProperty,
+    EnumProperty,
+)
+from bpy_extras.io_utils import (
+    ImportHelper,
+    ExportHelper,
+    orientation_helper,
+    path_reference_mode,
+    axis_conversion,
+)
 from bpy.app.handlers import persistent
+from . import export_obj
 
 BLENDER_30 = bpy.app.version[0] >= 3
 lastselection = []
@@ -1506,7 +1520,7 @@ class apply_kcl_flag(bpy.types.Operator):
             if(mytool.kcl_autoMerge):
                 bpy.ops.object.mode_set(mode='OBJECT')
                 aselection=context.selected_objects
-                merge_duplicate(context)
+                merge_duplicate_flags(context)
                 for obj in aselection:
                     try:
                         obj.select_set(True)
@@ -1537,7 +1551,7 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_autoMerge):
             bpy.ops.object.mode_set(mode='OBJECT')
             aselection=context.selected_objects
-            merge_duplicate(context)
+            merge_duplicate_flags(context)
             for obj in aselection:
                 try:
                     obj.select_set(True)
@@ -1629,7 +1643,7 @@ class add_blight(bpy.types.Operator):
             if(mytool.kcl_autoMerge):
                 bpy.ops.object.mode_set(mode='OBJECT')
                 aselection=context.selected_objects
-                merge_duplicate(context)
+                merge_duplicate_flags(context)
                 for obj in aselection:
                     try:
                         obj.select_set(True)
@@ -1671,7 +1685,7 @@ class add_blight(bpy.types.Operator):
         if(mytool.kcl_autoMerge):
             bpy.ops.object.mode_set(mode='OBJECT')
             aselection=context.selected_objects
-            merge_duplicate(context)
+            merge_duplicate_flags(context)
             for obj in aselection:
                 try:
                     obj.select_set(True)
@@ -1728,19 +1742,18 @@ def getSchemeColor(context,kclType,trickable,drivable,shadow):
 class export_kcl_file(bpy.types.Operator, ExportHelper):
     bl_idname = "kcl.export"
     bl_label = "Export KCL"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO','PRESET'}
     filename_ext = ".kcl"
 
     filter_glob: bpy.props.StringProperty(
         default='*.kcl',
         options={'HIDDEN'}
     )
-    # kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
     kclExportQuality : bpy.props.EnumProperty(name="File Quality", items=[("SMALL","Small","Creates relative small KCL file. Might help with lag. (Don't use if you want to use speedmod above 1.5)"),
                                                                         ("MEDIUM","Medium","Default KCL encoding values."),
                                                                         ("CHARY","Chary"," Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails.")], default="MEDIUM")
-    kclExportMerge : bpy.props.BoolProperty(name="Merge and remove .001s", default=True)
+    kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
@@ -1761,29 +1774,26 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
                 bpy.ops.object.mode_set(mode='OBJECT')
         
         selection = context.selected_objects        
-        if(self.kclExportMerge):
-            merge_duplicate(context)
 
         objectsToExport = []
-        # if(self.kclExportSelection):
-        #     objectsToExport = selection
-        # else:
-        objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
+        if(self.kclExportSelection):
+            objectsToExport = selection
+        else:
+            objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
         
         if(self.kclExportFlagOnly):
-            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName(obj.data.name)]
+            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName001(obj.name)]
             objectsToExport = objectsToExport1
 
         bpy.ops.object.select_all(action='DESELECT')
         for obj in objectsToExport:
             obj.select_set(True)
 
-        
-        selectionBool = True
-        # if(self.kclExportSelection or self.kclExportFlagOnly):
-        #     selectionBool = True
+        selectionBool = False
+        if(self.kclExportSelection or self.kclExportFlagOnly):
+            selectionBool = True
 
-        bpy.ops.export_scene.obj(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
+        bpy.ops.export_scene.objkcl(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
         wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
         wkclt += ("WEAKWALLS," if self.kclExportWeakWalls else "")
@@ -1970,6 +1980,31 @@ def merge_duplicate(context):
     bpy.ops.object.select_all(action='DESELECT')
     objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get()]
     meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get()]
+	
+    while i < len(objects):
+        objName = objects[i]
+        duplicate_names = get_duplicated_names(objName)
+        for name in duplicate_names:
+            join_duplicate_objects(objName, name)
+        if(objName[-3:].isnumeric() and objName[-4] == "."):
+            obj1 = bpy.data.objects.get(objName)
+            if(obj1):
+                obj1.name = objName[:-4]
+                obj1.data.name = objName[:-4]
+        obj1 = bpy.data.objects.get(objName)
+        if(hasattr(obj1,"data")):
+            obj1.data.name = objName
+        # MeshName = meshes[i].name
+        # if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
+        #     meshes[i].name = MeshName[:-4]
+        i=i+1    
+    return True
+
+def merge_duplicate_flags(context):
+    i = 0
+    bpy.ops.object.select_all(action='DESELECT')
+    objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get() and checkFlagInName001(ob.name)]
+    meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get() and checkFlagInName001(ob.name)]
 	
     while i < len(objects):
         objName = objects[i]
@@ -2390,6 +2425,12 @@ def checkFlagInName(name):
         return False
     return True
 
+def checkFlagInName001(name):
+    if(name[-3:].isnumeric() and name[-4] == '.'):
+        name = name[:-4]
+    result = checkFlagInName(name)
+    return result
+
 def checkMaterial():
     for i in range(11):   
         matName = "kmpc.area.A" + str(i)
@@ -2806,8 +2847,145 @@ class BadPluginInstall(bpy.types.Panel):
             parent=layout
         )
 
+@orientation_helper(axis_forward='-Z', axis_up='Y')
+class ExportOBJKCL(bpy.types.Operator, ExportHelper):
+    """Save a Wavefront OBJ File"""
 
-classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+    bl_idname = "export_scene.objkcl"
+    bl_label = 'Export OBJKCL'
+    bl_options = {'PRESET'}
+
+
+    # context group
+    use_selection: BoolProperty(
+        name="Selection Only",
+        description="Export selected objects only",
+        default=False,
+    )
+    use_animation: BoolProperty(
+        name="Animation",
+        description="Write out an OBJ for each frame",
+        default=False,
+    )
+
+    # object group
+    use_mesh_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply modifiers",
+        default=True,
+    )
+    # extra data group
+    use_edges: BoolProperty(
+        name="Include Edges",
+        description="",
+        default=True,
+    )
+    use_smooth_groups: BoolProperty(
+        name="Smooth Groups",
+        description="Write sharp edges as smooth groups",
+        default=False,
+    )
+    use_smooth_groups_bitflags: BoolProperty(
+        name="Bitflag Smooth Groups",
+        description="Same as 'Smooth Groups', but generate smooth groups IDs as bitflags "
+        "(produces at most 32 different smooth groups, usually much less)",
+        default=False,
+    )
+    use_normals: BoolProperty(
+        name="Write Normals",
+        description="Export one normal per vertex and per face, to represent flat faces and sharp edges",
+        default=True,
+    )
+    use_uvs: BoolProperty(
+        name="Include UVs",
+        description="Write out the active UV coordinates",
+        default=True,
+    )
+    use_materials: BoolProperty(
+        name="Write Materials",
+        description="Write out the MTL file",
+        default=True,
+    )
+    use_triangles: BoolProperty(
+        name="Triangulate Faces",
+        description="Convert all faces to triangles",
+        default=False,
+    )
+    use_nurbs: BoolProperty(
+        name="Write Nurbs",
+        description="Write nurbs curves as OBJ nurbs rather than "
+        "converting to geometry",
+        default=False,
+    )
+    use_vertex_groups: BoolProperty(
+        name="Polygroups",
+        description="",
+        default=False,
+    )
+
+    # grouping group
+    use_blen_objects: BoolProperty(
+        name="OBJ Objects",
+        description="Export Blender objects as OBJ objects",
+        default=True,
+    )
+    group_by_object: BoolProperty(
+        name="OBJ Groups",
+        description="Export Blender objects as OBJ groups",
+        default=False,
+    )
+    group_by_material: BoolProperty(
+        name="Material Groups",
+        description="Generate an OBJ group for each part of a geometry using a different material",
+        default=False,
+    )
+    keep_vertex_order: BoolProperty(
+        name="Keep Vertex Order",
+        description="",
+        default=False,
+    )
+
+    global_scale: FloatProperty(
+        name="Scale",
+        min=0.01, max=1000.0,
+        default=1.0,
+    )
+
+    path_mode: path_reference_mode
+
+    check_extension = True
+
+    def execute(self, context):
+        from . import export_obj
+
+        from mathutils import Matrix
+        keywords = self.as_keywords(
+            ignore=(
+                "axis_forward",
+                "axis_up",
+                "global_scale",
+                "check_existing",
+                "filter_glob",
+            ),
+        )
+
+        global_matrix = (
+            Matrix.Scale(self.global_scale, 4) @
+            axis_conversion(
+                to_forward=self.axis_forward,
+                to_up=self.axis_up,
+            ).to_4x4()
+        )
+
+        keywords["global_matrix"] = global_matrix
+        return export_obj.save(context, **keywords)
+
+    def draw(self, context):
+        pass
+
+
+
+classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
 addon_keymaps = []
