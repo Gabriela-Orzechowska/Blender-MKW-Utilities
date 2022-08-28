@@ -349,7 +349,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("4", "Dirt", ''),
                                                                 ("5", "Grass", ''),
                                                                 ("6", "Wood", ''),
-                                                                ("7", "Unknown", '')],update=dummyKCLFunction)
+                                                                ("7", "Dark sand with GFX", '')],update=dummyKCLFunction)
     kclVariantT0B : bpy.props.EnumProperty(name = "Variant", items=[("0", "Moving water that follows a route, pulling the player downwards.", 'Route settings:\n1 = speed\n2 = unknown'),
                                                                 ("1", "Moving water that follows a route and strongly pulls the player downwards, making it hard to drive.", 'Route settings:\n1 = speed\n2 = unknown'),
                                                                 ("2", "Moving water that follows a route from the start of the path to the end of it.", 'Route settings:\n1 = unknown\n2 = with value 1, the moving water direction rotates 90 degrees.\nIt also uses two settings in the AREA:\nAt 0x28 = acceleration/deceleration modifier\nAt 0x2A = route speed (speed at which the route pulls the player)\n (Supported by AREA plugin)'),
@@ -565,8 +565,8 @@ class MyProperties(bpy.types.PropertyGroup):
                                                 ("5", "Echo", ''),
                                                 ("6", "Strong echo", '')],update=dummyKCLFunction)
 
-    kclVariantT1A : bpy.props.EnumProperty(name = "Variant", items=[("0", "BRSTM reset", ''),
-                                                                ("1", "Enable shadow effect", ''),
+    kclVariantT1A : bpy.props.EnumProperty(name = "Variant", items=[("0", "Enable BLIGHT effect", ''),
+                                                                ("1", "Enable BLIGHT effect (different from 0?)", ''),
                                                                 ("2", "Water splash (pocha)", ''),
                                                                 ("3", "starGate door activation", ''),
                                                                 ("4", "Half-pipe cancellation", ''),
