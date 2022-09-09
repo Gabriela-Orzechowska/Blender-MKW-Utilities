@@ -35,6 +35,7 @@ from bpy.app.handlers import persistent
 from . import export_obj
 
 BLENDER_30 = bpy.app.version[0] >= 3
+BLENDER_33 = bpy.app.version[0] >= 3 and bpy.app.version[1] >= 3
 lastselection = []
 setting1users = ["A2", "A3", "A6", "A8", "A9", "A10"]
 setting2users = ["A3", "A6", "A10"]
@@ -617,8 +618,8 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                     ("2", "Add type and variant label", ''),
                                                                     ("3", "Add to original", '')
                                                                     ],default="1",update=dummyKCLFunction)
-    kcl_autoSeparate : bpy.props.BoolProperty(name = "(Beta) Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.",update=dummyKCLFunction)
-    kcl_autoMerge : bpy.props.BoolProperty(name = "(Beta) Auto-merge objects", default=True, description="Automatically merge objects with same flags.",update=dummyKCLFunction)
+    kcl_autoSeparate : bpy.props.BoolProperty(name = "Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.",update=dummyKCLFunction)
+    kcl_autoMerge : bpy.props.BoolProperty(name = "Auto-merge KCL objects", default=True, description="Automatically merge objects with same flags.",update=dummyKCLFunction)
 #endregion
 
 labelDict = {
@@ -659,9 +660,9 @@ labelDict = {
 
 }
 
-current_version = "v0.1.8-2"
-latest_version = "v0.1.8-2"
-prerelease_version = "v0.1.8-2"
+current_version = "v0.1.9"
+latest_version = "v0.1.9"
+prerelease_version = "v0.1.9"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -729,7 +730,6 @@ class KMPUtilities(bpy.types.Panel):
         layout.operator("kmpc.gobj")
         merge = layout.column()
         merge.operator("mkw.objectmerge")
-        layout.operator("mkw.matdel")
         if(bpy.context.object is not None):
             current_mode = bpy.context.object.mode
         else:
@@ -813,7 +813,7 @@ class KCLUtilities(bpy.types.Panel):
             layout.operator("kcl.export")
         
 class AREAUtilities(bpy.types.Panel):
-    bl_label = "AREA Utilities"
+    bl_label = "AREA Utilities (Deprecated)"
     bl_idname = "MKW_PT_KmpArea"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -931,6 +931,7 @@ class MaterialUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
+        layout.operator("mkw.matdel")
         layout.operator("kmpt.blend")
         layout.operator("kmpt.clip")
         layout.operator("kmpt.metalic")
@@ -1564,9 +1565,9 @@ class apply_kcl_flag(bpy.types.Operator):
 
 class add_blight(bpy.types.Operator):
     bl_idname = "kcl.addblight"
-    bl_label = "(Beta) Add BLIGHT"
+    bl_label = "(Beta) Update BLIGHT"
     bl_options = {'UNDO'}
-    bl_description = "Adds BLIGHT (Shadow) without changing other flag bits"
+    bl_description = "Updates BLIGHT (Shadow) without changing other flag bits"
     def execute(self, context):
         selection = []
         oldSelection = []
@@ -1585,7 +1586,9 @@ class add_blight(bpy.types.Operator):
             if(lastActive not in oldSelection):
                 oldSelection.append(lastActive)
             for i in oldSelection:
-                if not checkFlagInName(i.name):
+                if not checkFlagInName001(i.name):
+                    if(i.name[-4]=="."):
+                        i.name = i.name[:-4]
                     self.report({"WARNING"}, "At least one of selected objects does not have proper flag.")
                     return {'CANCELLED'}      
 
@@ -1599,7 +1602,7 @@ class add_blight(bpy.types.Operator):
             bpy.context.view_layer.objects.active = context.selected_objects[0]
             selection.append(context.selected_objects[0])
             print(separated)
-        elif not checkFlagInName(active.name):
+        elif not checkFlagInName001(active.name):
             self.report({"WARNING"}, "Object does have proper flag")
             return {'CANCELLED'}
 
@@ -1614,6 +1617,8 @@ class add_blight(bpy.types.Operator):
         else:
             i = active
             print(i.name)
+            if(i.name[-4]=="."):
+                i.name = i.name[:-4]
             bits = i.name[-4:]
             bits = bin(int(bits, 16))[2:].zfill(16)
             bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3)+bits[8:]
@@ -1655,6 +1660,8 @@ class add_blight(bpy.types.Operator):
             return {'FINISHED'}
         if(wasInEditMode):
             for i in separated:
+                if(i.name[-4]=="."):
+                    i.name = i.name[:-4]
                 flagOnly = i.name[-9:]
                 print(flagOnly[-4:])
                 print(flagOnly)
@@ -1670,6 +1677,8 @@ class add_blight(bpy.types.Operator):
                 i.data.materials.clear()
                 i.data.materials.append(mat)
         else:
+            if(i.name[-4]=="."):
+                active.name = active.name[:-4]
             flagOnly = active.name[-9:]
             mat = bpy.data.materials.get(flagOnly)
             if mat is None:
@@ -1755,10 +1764,11 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
                                                                         ("CHARY","Chary"," Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails.")], default="MEDIUM")
     kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
     kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
-    kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=True)
+    kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=False)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
     kclExportLowerDegree : bpy.props.IntProperty(name="Degree", default= 45)
     kclExportWeakWalls : bpy.props.BoolProperty(name="Soften Walls")
+    kclExportDrop : bpy.props.BoolProperty(name="Drop")
     kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
     kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
     kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
@@ -1797,6 +1807,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         
         wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
         wkclt += ("WEAKWALLS," if self.kclExportWeakWalls else "")
+        wkclt += ("DROP," if self.kclExportDrop else "")
         wkclt += ("DROPUNUSED," if self.kclExportDropUnused else "")
         wkclt += ("DROPFIXED," if self.kclExportDropFixed else "")
         wkclt += ("DROPINVALID," if self.kclExportDropInvalid else "")
@@ -1804,11 +1815,12 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         wkclt += ("RMFACEUP," if self.kclExportRemoveFaceup else "")
         wkclt += ("CONVFACEUP," if self.kclExportConvFaceup else "")
         wkclt += self.kclExportQuality
-        print(wkclt)
+        
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         if (self.kclExportLowerWalls):
             wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
+        print(wkclt)
         os.system(wkclt)
 
         bpy.ops.object.select_all(action='DESELECT')
@@ -1825,7 +1837,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
     bl_description = "Loads KCL file"
     
     filter_glob: bpy.props.StringProperty(
-        default='*.kcl',
+        default='*.kcl;*.szs',
         options={'HIDDEN'}
     )
 
@@ -1861,7 +1873,10 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         file.close()
         os.system("del \""+filepath[:-3]+"flag\"")
         os.system("wkclt decode \"" + filepath + "\" -o")
-        bpy.ops.import_scene.obj(filepath=filepath[:-3]+"obj")
+        if(BLENDER_33):
+            bpy.ops.wm.obj_import(filepath=filepath[:-3]+"obj")
+        else:
+            bpy.ops.import_scene.obj(filepath=filepath[:-3]+"obj")
         os.system("del \""+filepath[:-3]+"obj\"")
         os.system("del \""+filepath[:-3]+"mtl\"")
         context.view_layer.objects.active = bpy.context.selected_objects[0]
@@ -2849,11 +2864,8 @@ class BadPluginInstall(bpy.types.Panel):
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ExportOBJKCL(bpy.types.Operator, ExportHelper):
-    """Save a Wavefront OBJ File"""
-
     bl_idname = "export_scene.objkcl"
-    bl_label = 'Export OBJKCL'
-    bl_options = {'PRESET'}
+    bl_label = 'LMAO'
 
 
     # context group
