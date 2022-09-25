@@ -828,6 +828,7 @@ class AREAUtilities(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
+    bl_options = {'DEFAULT_CLOSED'}
     def draw_header(self, _):
         layout = self.layout
         layout.label(text="", icon='CUBE')
