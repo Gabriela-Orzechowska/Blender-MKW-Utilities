@@ -16,6 +16,8 @@ import random
 import struct 
 import requests
 import webbrowser
+import locale
+import numpy as np
 from mathutils import Vector
 import bpy
 from bpy.props import (
@@ -708,6 +710,10 @@ class KMPUtilities(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "MKW Utils"
     
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='BLENDER')
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -747,7 +753,9 @@ class KCLSettings(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
-    
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='PREFERENCES')
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -766,7 +774,9 @@ class KCLUtilities(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
-    
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='FACESEL')
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -818,7 +828,9 @@ class AREAUtilities(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
-    
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='CUBE')
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -881,6 +893,9 @@ class CAMEUtilities(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='VIEW_CAMERA')
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -913,6 +928,9 @@ class RouteUtilities(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='CURVE_DATA')
     def draw(self, context):
         layout = self.layout
         scene = context.scene
@@ -927,12 +945,19 @@ class MaterialUtilities(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
+        
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='MATERIAL')
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
         layout.operator("mkw.matdel")
+        layout.operator("kmpt.vercolor")
         layout.operator("kmpt.blend")
+        layout.operator("kmpt.hashed")
         layout.operator("kmpt.clip")
         layout.operator("kmpt.metalic")
 
@@ -952,7 +977,29 @@ class set_alpha_blend(bpy.types.Operator):
                         shader = mat.node_tree.nodes['Principled BSDF']
                         for node in mat.node_tree.nodes:
                             if node.type == 'TEX_IMAGE':
-                                mat.node_tree.links.new(shader.inputs['Alpha'], node.outputs['Alpha'])
+                                if not shader.inputs['Alpha'].links:
+                                    mat.node_tree.links.new(shader.inputs['Alpha'], node.outputs['Alpha'])
+        return {'FINISHED'}
+
+
+class set_alpha_hashed(bpy.types.Operator):
+    bl_idname = "kmpt.hashed"
+    bl_label = "Add Alpha Hashed"
+    bl_description = "Add Alpha Node from Image Texture and set Alpha mode to Hashed"
+    bl_options = {'UNDO'}
+    def execute(self, context):
+        selected = bpy.context.selected_objects
+        for obj in selected:
+            if obj.type == 'MESH' and not obj.active_material == None:
+                for item in obj.material_slots:
+                    mat = bpy.data.materials[item.name]
+                    if mat.use_nodes:                    
+                        mat.blend_method = 'BLEND'
+                        shader = mat.node_tree.nodes['Principled BSDF']
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'TEX_IMAGE':
+                                if not shader.inputs['Alpha'].links:
+                                    mat.node_tree.links.new(shader.inputs['Alpha'], node.outputs['Alpha'])
         return {'FINISHED'}
 class set_alpha_clip(bpy.types.Operator):
     bl_idname = "kmpt.clip"
@@ -970,7 +1017,8 @@ class set_alpha_clip(bpy.types.Operator):
                         shader = mat.node_tree.nodes['Principled BSDF']
                         for node in mat.node_tree.nodes:
                             if node.type == 'TEX_IMAGE':
-                                mat.node_tree.links.new(shader.inputs['Alpha'], node.outputs['Alpha'])
+                                if not shader.inputs['Alpha'].links:
+                                    mat.node_tree.links.new(shader.inputs['Alpha'], node.outputs['Alpha'])
         return {'FINISHED'}
 class remove_specular_metalic(bpy.types.Operator):
     bl_idname = "kmpt.metalic"
@@ -983,12 +1031,71 @@ class remove_specular_metalic(bpy.types.Operator):
             if obj.type == 'MESH' and not obj.active_material == None:
                 for item in obj.material_slots:
                     mat = bpy.data.materials[item.name]
-                    if mat.use_nodes:                    
-                        mat.node_tree.nodes['Principled BSDF'].inputs[4].default_value = 0
-                        mat.node_tree.nodes['Principled BSDF'].inputs[5].default_value = 0
+                    if mat.use_nodes:
+                        if(BLENDER_30):
+                            mat.node_tree.nodes['Principled BSDF'].inputs[7].default_value = 0
+                            mat.node_tree.nodes['Principled BSDF'].inputs[6].default_value = 0
+                        else:                    
+                            mat.node_tree.nodes['Principled BSDF'].inputs[4].default_value = 0
+                            mat.node_tree.nodes['Principled BSDF'].inputs[5].default_value = 0
     
 
         return {'FINISHED'}
+        
+class add_vertex_col(bpy.types.Operator):
+    bl_idname = "kmpt.vercolor"
+    bl_label = "Add Vertex Colors Nodes"
+    bl_description = "Adds vertex colors nodes on material and selected objects (if not already found)"
+    bl_options = {'UNDO'}
+    def execute(self, context):
+        selected = bpy.context.selected_objects
+        for obj in selected:
+            if obj.type == 'MESH' and not obj.active_material == None:
+                if not obj.data.vertex_colors:
+                    obj.data.vertex_colors.new(name="Vertex Colors")
+
+                for item in obj.material_slots:
+                    mat = bpy.data.materials[item.name]
+                    if mat.use_nodes:
+                        shader = mat.node_tree.nodes['Principled BSDF']
+                        txtNode = None
+                        principled = None
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                principled = node
+                                for n_inputs in node.inputs:
+                                    for node_links in n_inputs.links:
+                                        txtNode = node_links.from_node
+                        if(hasattr(txtNode, "type")):
+                            if(txtNode.type == 'TEX_IMAGE'):
+                                txtNode.location = (-500,300)
+                                vertexNode = mat.node_tree.nodes.new("ShaderNodeVertexColor")
+                                vertexNode.location = (-410,-140)
+                                mixRGBNode = mat.node_tree.nodes.new("ShaderNodeMixRGB")
+                                mixRGBNode.location = (-180,100)
+                                mixRGBNode.blend_type = 'MULTIPLY'
+                                mixRGBNode.inputs[0].default_value = 1
+                                alphaMathNode = mat.node_tree.nodes.new("ShaderNodeMath")
+                                alphaMathNode.location = (-170,-180)
+                                alphaMathNode.operation = 'MULTIPLY'
+                                links = mat.node_tree.links
+                                links.new(mixRGBNode.inputs['Color1'], txtNode.outputs['Color'])
+                                links.new(mixRGBNode.inputs['Color2'], vertexNode.outputs['Color'])
+                                links.new(principled.inputs['Base Color'], mixRGBNode.outputs['Color'])
+
+                                links.new(alphaMathNode.inputs[0], txtNode.outputs['Alpha'])
+                                links.new(alphaMathNode.inputs[1], vertexNode.outputs['Alpha'])
+                                links.new(principled.inputs['Alpha'], alphaMathNode.outputs['Value'])
+
+
+                            else:
+                                self.report({"WARNING"}, "Couldn't find a Image Texture connected to Principled BSDF: {0}".format(mat.name))
+                        else:
+                            self.report({"WARNING"}, "Couldn't find any Image Texture node: {0}".format(mat.name))
+                                        
+        return {'FINISHED'}
+                                
+
 
 class kmp_came(bpy.types.Operator):
     bl_idname = "kmpt.came"
@@ -1002,7 +1109,7 @@ class kmp_came(bpy.types.Operator):
         scale = mytool.scale
         selected = bpy.context.selected_objects
         selected.sort(key=lambda obj: obj.name)
-            
+        decimal = locale.localeconv()["decimal_point"]
         for object in selected:
             if not object.name.startswith("CAME_"):
                 continue
@@ -1132,6 +1239,8 @@ class kmp_came(bpy.types.Operator):
             frames = properties[5]
             dataValue = properties[1].zfill(2) + "\t" + properties[2].zfill(2) + "\t" + properties[3].zfill(2) + "\t00\t"+ properties[4].zfill(2) +"\t0000\t"+str(fovSpeed)+"\t"+str(vpSpeed)+"\t00\t00\t"+str(xpos)+"\t"+str(ypos)+"\t"+str(zpos)+"\t0\t0\t0\t"+str(int(fovs[0]))+"\t"+str(int(fovs[1]))+"\t"+str(vsxpos)+"\t"+str(vsypos)+"\t"+str(vszpos)+"\t"+str(vexpos)+"\t"+str(veypos)+"\t"+str(vezpos)+"\t"+str(frames)+"\n"
             data += dataValue
+        if(decimal != "."):
+            data.replace(".",decimal)
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
 
@@ -1146,6 +1255,7 @@ class keyframes_to_route(bpy.types.Operator):
         scale = mytool.scale
         keyframes = []
         locations = []
+        decimal = locale.localeconv()["decimal_point"]
         activeObject = bpy.context.active_object
         if not hasattr(activeObject, "animation_data"):
             self.report({"WARNING"}, "Selected object does not have any keyframes")
@@ -1194,6 +1304,8 @@ class keyframes_to_route(bpy.types.Operator):
             sped = "{0:0{1}X}".format(sped,4)
             dataValue = str(i).zfill(2) + "\t" + str(xpos) + "\t" + str(ypos) + "\t" + str(zpos) + "\t" + str(sped) + "\t" + "0000" + "\n"
             data += dataValue
+        if(decimal != "."):
+            data.replace(".",decimal)
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
 
@@ -1208,6 +1320,7 @@ class timeline_to_route(bpy.types.Operator):
         scale = mytool.scale
         keyframes = []
         locations = []
+        decimal = locale.localeconv()["decimal_point"]
         activeObject = bpy.context.active_object
         if not hasattr(activeObject, "animation_data"):
            return {'FINISHED'}  
@@ -1247,6 +1360,8 @@ class timeline_to_route(bpy.types.Operator):
             dataValue = str(i).zfill(2) + "\t" + str(xpos) + "\t" + str(ypos) + "\t" + str(zpos) + "\t" + str(sped) + "\t" + "0000" + "\n"
             data += dataValue
         bpy.context.window_manager.clipboard = data
+        if(decimal != "."):
+            data.replace(".",decimal)
         return {'FINISHED'}
 class create_camera(bpy.types.Operator):
     bl_idname = "came.create"
@@ -1759,22 +1874,111 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         options={'HIDDEN'}
     )
     kclExportScale : bpy.props.FloatProperty(name="Scale", min = 0.0001, max = 10000, default = 100)
-    kclExportQuality : bpy.props.EnumProperty(name="File Quality", items=[("SMALL","Small","Creates relative small KCL file. Might help with lag. (Don't use if you want to use speedmod above 1.5)"),
+    kclExportQuality : bpy.props.EnumProperty(name="Quality", items=[("SMALL","Small","Creates relative small KCL file. Might help with lag. (Don't use if you want to use speedmod above 1.5)"),
                                                                         ("MEDIUM","Medium","Default KCL encoding values."),
-                                                                        ("CHARY","Chary"," Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails.")], default="MEDIUM")
+                                                                        ("CHARY","Chary","Nintendo like values, that are very careful. Use it only for experiments or if MEDIUM fails"),
+                                                                        ("CUSTOM","Custom","Freely change octree settings")], default="MEDIUM")
     kclExportSelection : bpy.props.BoolProperty(name="Selection only", default=False)
-    kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with flag", default=True)
+    kclExportFlagOnly : bpy.props.BoolProperty(name="Only objects with KCL Flag", default=True)
     kclExportLowerWalls : bpy.props.BoolProperty(name="Lower Walls", default=False)
     kclExportLowerWallsBy : bpy.props.IntProperty(name="Lower Walls by", default= 30)
     kclExportLowerDegree : bpy.props.IntProperty(name="Degree", default= 45)
     kclExportWeakWalls : bpy.props.BoolProperty(name="Soften Walls")
-    kclExportDrop : bpy.props.BoolProperty(name="Drop")
+    kclExportUnBeanCorner : bpy.props.EnumProperty(name="Method", items=[("NONE","None","Don't lower or change wall flags"),
+                                                                        ("WEAK","Soften Walls","Change the walls flag in order to remove bean corners (Nintendo method)"),
+                                                                        ("LOWER","Lower Walls","Lower walls in order to remove bean corners"),
+                                                                        ("BOTH","Both","Use both methods (Not recomended)")], default="WEAK") 
+    kclExportFixAll : bpy.props.BoolProperty(name="Fix All")
+    kclExportDrop : bpy.props.BoolProperty(name="Drop All")
     kclExportDropUnused : bpy.props.BoolProperty(name="Drop Unused")
     kclExportDropFixed : bpy.props.BoolProperty(name="Drop Fixed")
     kclExportDropInvalid : bpy.props.BoolProperty(name="Drop Invalid")
     kclExportRemoveFacedown : bpy.props.BoolProperty(name="Remove facedown road")
     kclExportRemoveFaceup : bpy.props.BoolProperty(name="Remove faceup walls")
     kclExportConvFaceup : bpy.props.BoolProperty(name="Convert faceup walls to road")
+    kclExportTriArea : bpy.props.FloatProperty(name="Minimal Tri Area", min = 0.001, max = 6.0, default = 1.0, description="(Value for already scaled and encoded KCL) Define the minimal area size of KCL triangles. The intention is to ignore triangles that are generally to small. Values between 0.01 and 4.0 are recommended. The careful value 1.0 is used as default. Value 0 disables this filter functionality.")
+    kclExportTriHeight : bpy.props.FloatProperty(name="Minimal Tri Height", min = 0.001, max = 4.0, default = 1.0, description="(Value for already scaled and encoded KCL) Define the minimal height of KCL triangles. The intention is to ignore deformed triangles (very slim, but long). Values between 0.01 and 2.0 are recommended. The careful value 1.0 is used as default. Value 0 disables this filter functionality.")
+    
+    kclEncodeUseScale : bpy.props.BoolProperty(name="Use Export Scale for Translation",default=True)
+    kclEncodeScale : bpy.props.FloatVectorProperty(name="Scale", default=(1.0,1.0,1.0), min=0.00001,max=1000000)
+    kclEncodeShift : bpy.props.FloatVectorProperty(name="Shift", default=(0.0,0.0,0.0), min=-1000000,max=1000000)
+    kclEncodeRotate : bpy.props.FloatVectorProperty(name="Rotate", default=(0.0,0.0,0.0), min=-1000000,max=1000000)
+    kclEncodeTranslate : bpy.props.FloatVectorProperty(name="Translate", default=(0.0,0.0,0.0), min=-1000000,max=1000000)
+
+
+    kclSetKCL_BITS : bpy.props.IntProperty(name="KCL_BITS", default=0, min=0,max=20,description="0 to disable. This constant defines the number of bits used for the hash part of the octree. The result is, that the world will be divided in 2^bits base cubes. The number of bits is sometimes reduced because of technical limits")
+    kclSetKCL_BLOW : bpy.props.IntProperty(name="KCL_BLOW", default=400, min=0,max=10000,description="For the octree, the world is divided into many cubes of equal size, normally 512*512*512 units. For collisions of an object (eg. driver or item) the octree is traversed to find a list with important triangles (faces) for the current positions. It is important, that near triagles of the neighbor cubes are also included into the triangle list")
+    kclSetKCL_MAX : bpy.props.FloatVectorProperty(name="KCL_MAX", default=(0,0,0),description="KCL_MAX is a vector value. If a coordinate is set, it is used as maximal coordinate for the collision detection. The default is the maximum of all triangle points. However, this value is only used for the base cube calculations (number and size). The real upper border is then: MIN + N_CUBES * CUBE_SIZE.")
+    kclSetKCL_MAX_DEPTH : bpy.props.IntProperty(name="KCL_MAX_DEPTH", default=10, min=0,max=30,description="KCL_MAX_DEPTH is 1 critieria of 3 to abort the cube recursion. The recursion is aborted and if the maximum octree depth KCL_MAX_DEPTH is reached; the default is 10. Nintendos tracks have values in the range of 3..6, but under the influence of KCL_MIN_SIZE")
+    kclSetKCL_MAX_TRI : bpy.props.IntProperty(name="KCL_MAX_TRI", default=30, min=5,max=500,description="KCL_MAX_TRI is together with KCL_MAX_SIZE 1 critieria of 3 to abort the cube recursion. If creating the octree, a cube is divided into 8 equal sub cubes as long as the number of related triangles is larger than KCL_MAX_TRI. This condition is ignored, if the cube itself is larger than KCL_MAX_SIZE")
+    kclSetKCL_MIN : bpy.props.FloatVectorProperty(name="KCL_MIN", default=(0,0,0),description="KCL_MIN is a vector value. If a coordinate is set, it is used as minimal coordinate for the collision detection. The default is the minimum of all triangle points.")
+    kclSetKCL_MIN_SIZE : bpy.props.IntProperty(name="KCL_MIN_SIZE", default=512,min=1,max=1048576,description="KCL_MAX_TRI is together with KCL_MAX_SIZE 1 critieria of 3 to abort the cube recursion. If creating the octree, a cube is divided into 8 equal sub cubes as long as the number of related triangles is larger than KCL_MAX_TRI. This condition is ignored, if the cube itself is larger than KCL_MAX_SIZE")
+    kclSetKCL_MAX_SIZE : bpy.props.IntProperty(name="KCL_MAX_SIZE", default=0, min=256,max=1048576,description="KCL_MAX_SIZE is together with KCL_MAX_TRI 1 criteria of 3 to abort the cube recursion. The recursion is aborted, the cube size is smaller or equal KCL_MAX_TRI and the number of triangles is smaller or equal KCL_MAX_TRI.")
+
+
+    def draw(self,context):
+        layout = self.layout
+
+        selectionBox = layout.box()
+        selectionBox.label(text="Export Settings", icon='MESH_DATA')
+        selection = selectionBox.column()
+        selection.prop(self,"kclExportScale")
+        selection.prop(self,"kclExportSelection")
+        selection.prop(self,"kclExportFlagOnly")
+
+        unbeancornerBox = layout.box()
+        unbeancornerBox.label(text="Un-Bean Corner", icon='NORMALS_VERTEX_FACE')
+        unbeancorner = unbeancornerBox.column()
+        unbeancorner.prop(self,"kclExportUnBeanCorner")
+        if(self.kclExportUnBeanCorner == "LOWER" or self.kclExportUnBeanCorner == "BOTH"):
+            unbeancorner.prop(self,"kclExportLowerWallsBy")
+            unbeancorner.prop(self,"kclExportLowerDegree")
+
+        wkcltSettingsBox = layout.box()
+        wkcltSettingsBox.label(text="WKCLT Settings", icon='MODIFIER')
+        wkcltSettings = wkcltSettingsBox.column()
+        wkcltSettings.prop(self,"kclExportQuality")
+        if self.kclExportQuality == "CUSTOM":
+            wkcltSettingsCustomBox = wkcltSettings.box()
+            wkcltSettingsCustomBox.label(text="Advanced Quality Settings", icon='MODIFIER_DATA')
+            wkcltSettingsCustomBox.label(text="0 = Ignore / Use default")
+            wkcltcustomColumn = wkcltSettingsCustomBox.column()
+            wkcltcustomColumn.prop(self,"kclSetKCL_BITS")
+            wkcltcustomColumn.prop(self,"kclSetKCL_BLOW")
+            kclmax = wkcltSettingsCustomBox.row()
+            kclmax.prop(self,"kclSetKCL_MAX")
+            wkcltcustomColumn = wkcltSettingsCustomBox.column()
+            wkcltcustomColumn.prop(self,"kclSetKCL_MAX_DEPTH")
+            wkcltcustomColumn.prop(self,"kclSetKCL_MAX_TRI")
+            kclmin = wkcltSettingsCustomBox.row()
+            kclmin.prop(self,"kclSetKCL_MIN")
+            wkcltcustomColumn = wkcltSettingsCustomBox.column()
+            wkcltcustomColumn.prop(self,"kclSetKCL_MIN_SIZE")
+            wkcltcustomColumn.prop(self,"kclSetKCL_MAX_SIZE")
+        wkcltSettings.prop(self,"kclExportFixAll")
+        if not self.kclExportFixAll:
+            wkcltSettings.prop(self,"kclExportDrop")
+            if not self.kclExportDrop:
+                wkcltSettings.prop(self,"kclExportDropUnused")
+                wkcltSettings.prop(self,"kclExportDropInvalid")
+                wkcltSettings.prop(self,"kclExportDropFixed")
+            wkcltSettings.prop(self,"kclExportRemoveFacedown")
+            wkcltSettings.prop(self,"kclExportRemoveFaceup")
+        wkcltSettings.prop(self,"kclExportConvFaceup")
+        wkcltSettings.prop(self,"kclExportTriArea")
+        wkcltSettings.prop(self,"kclExportTriHeight")
+
+        wkcltEncode = layout.box()
+        wkcltEncode.label(text="Encode Transformations (X, Y, Z)", icon='FILE_TICK')
+        wkcltEncode.prop(self,"kclEncodeUseScale")
+        row1=wkcltEncode.row()
+        row1.prop(self,"kclEncodeScale")
+        row2=wkcltEncode.row()
+        row2.prop(self,"kclEncodeShift")
+        row3=wkcltEncode.row()
+        row3.prop(self,"kclEncodeRotate")
+        row4=wkcltEncode.row()
+        row4.prop(self,"kclEncodeTranslate")
 
     def execute(self, context):
         filepath = self.filepath
@@ -1805,21 +2009,72 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
         bpy.ops.export_scene.objkcl(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
         
-        wkclt = "wkclt encode \"" + filepath + "\" -o --kcl="
-        wkclt += ("WEAKWALLS," if self.kclExportWeakWalls else "")
+        wkclt = "wkclt encode \"" + filepath + "\""
+        if(self.kclEncodeScale[:] != (1.0,1.0,1.0)):
+            wkclt += (" --scale " + str(self.kclEncodeScale[:])[1:-1].replace(" ", ""))
+        if(self.kclEncodeShift[:] != (0.0,0.0,0.0)):
+            value = self.kclEncodeShift
+            print(value[:])
+            if(self.kclEncodeUseScale):
+                value[0] = round(value[0] * self.kclExportScale,3)
+                value[1] = round(value[1] * self.kclExportScale,3)
+                value[2] = round(value[2] * self.kclExportScale,3)
+                
+            print(value[:])
+            wkclt += (" --shift " + str(value[:])[1:-1].replace(" ", ""))
+        
+        if(self.kclEncodeRotate[:] != (0.0,0.0,0.0)):
+            wkclt += (" --rot " + str(self.kclEncodeRotate[:])[1:-1].replace(" ", ""))
+        if(self.kclEncodeTranslate[:] != (0.0,0.0,0.0)):
+            value = self.kclEncodeTranslate
+            print(value[:])
+            if(self.kclEncodeUseScale):
+                value[0] = round(value[0] * self.kclExportScale,4)
+                value[1] = round(value[1] * self.kclExportScale,4)
+                value[2] = round(value[2] * self.kclExportScale,4)
+            print(value[:])
+            wkclt += (" --translate " + str(value[:])[1:-1].replace(" ", ""))
+        
+        wkclt += " --tri-area " + str(self.kclExportTriArea)
+        wkclt += " --tri-height " + str(self.kclExportTriHeight)
+        wkclt += " -o --kcl="
+        wkclt += ("WEAKWALLS," if self.kclExportUnBeanCorner == "WEAK" or self.kclExportUnBeanCorner == "BOTH" else "")
         wkclt += ("DROP," if self.kclExportDrop else "")
+        wkclt += ("FIXALL," if self.kclExportFixAll else "")
         wkclt += ("DROPUNUSED," if self.kclExportDropUnused else "")
         wkclt += ("DROPFIXED," if self.kclExportDropFixed else "")
         wkclt += ("DROPINVALID," if self.kclExportDropInvalid else "")
         wkclt += ("RMFACEDOWN," if self.kclExportRemoveFacedown else "")
         wkclt += ("RMFACEUP," if self.kclExportRemoveFaceup else "")
         wkclt += ("CONVFACEUP," if self.kclExportConvFaceup else "")
-        wkclt += self.kclExportQuality
+        if self.kclExportQuality != "CUSTOM":
+            wkclt += self.kclExportQuality
         
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
-        if (self.kclExportLowerWalls):
-            wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree) if self.kclExportLowerWalls else "")
+        if (self.kclExportUnBeanCorner == "LOWER" or self.kclExportUnBeanCorner == "BOTH"):
+            wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree)+ ",") 
+        else:
+            if(self.kclExportQuality == "CUSTOM"):
+                wkclt += " --const "
+        if(self.kclExportQuality == "CUSTOM"):
+            if(self.kclSetKCL_BITS != 0): 
+                wkclt += "KCL_BITS="+str(self.kclSetKCL_BITS) + ","
+            blow = str(self.kclSetKCL_BLOW) if self.kclSetKCL_BLOW > 0 else "400"
+            wkclt += "KCL_BLOW="+ blow + ","
+            if(self.kclSetKCL_MAX[:] != (0,0,0)): 
+                wkclt += "KCL_MAX=v"+str((self.kclSetKCL_MAX)[:]).replace(" ", "") + ","
+            if(self.kclSetKCL_MAX_DEPTH != 10 and self.kclSetKCL_MAX_DEPTH != 0):
+                wkclt += "KCL_MAX_DEPTH="+ str(self.kclSetKCL_MAX_DEPTH) + ","
+            if(self.kclSetKCL_MAX_TRI != 30 and self.kclSetKCL_MAX_TRI != 0):
+                wkclt += "KCL_MAX_TRI="+ str(self.kclSetKCL_MAX_TRI) + ","
+            if(self.kclSetKCL_MIN[:] != (0,0,0)): 
+                wkclt += "KCL_MIN=v"+str((self.kclSetKCL_MIN)[:]).replace(" ", "") + ","
+            if(self.kclSetKCL_MIN_SIZE != 512 and self.kclSetKCL_MIN_SIZE != 0):
+                wkclt += "KCL_MIN_SIZE="+ str(self.kclSetKCL_MIN_SIZE) + ","
+            if(self.kclSetKCL_MAX_SIZE != 0):
+                wkclt += "KCL_MAX_SIZE="+ str(self.kclSetKCL_MAX_SIZE) + ","
+        
         print(wkclt)
         os.system(wkclt)
 
@@ -2742,7 +2997,7 @@ class ImportPrefs(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 class PreferenceProperty(bpy.types.AddonPreferences):
     bl_idname = __name__
-#region preferences
+    #region preferences
     updates_bool : bpy.props.BoolProperty(name="Check for updates", default=True)
     prerelease_bool : bpy.props.BoolProperty(name="Check for pre-release versions", default=False)
 
@@ -2790,7 +3045,7 @@ class PreferenceProperty(bpy.types.AddonPreferences):
     kclColorT1D : bpy.props.FloatVectorProperty(name='Moving Road (0x1D)', subtype='COLOR',min=0.0,max=1.0,default=[0,0,0.36])
     kclColorT1E : bpy.props.FloatVectorProperty(name='Special Wall (0x1E)', subtype='COLOR',min=0.0,max=1.0,default=[0.6,0.4,0.5])
     kclColorT1F : bpy.props.FloatVectorProperty(name='Wall 5 (0x1F)', subtype='COLOR',min=0.0,max=1.0,default=[0.2,0.2,0.2])
-#endregion
+    #endregion
     
     def draw(self, context):
         layout = self.layout
@@ -2865,8 +3120,8 @@ class BadPluginInstall(bpy.types.Panel):
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ExportOBJKCL(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.objkcl"
-    bl_label = 'LMAO'
-
+    bl_label = 'Export OBJKCL'
+    bl_description = "There's no OBJKCL. Never was. I'm talking from outside of the system. We stop the simulation. Look under the pillow, you will find bag of gummy bears. Eat them all. You will fall asleep and wake up in 2009. We will start all over again."
 
     # context group
     use_selection: BoolProperty(
@@ -2997,7 +3252,7 @@ class ExportOBJKCL(bpy.types.Operator, ExportHelper):
 
 
 
-classes = [PreferenceProperty, MyProperties, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [ add_vertex_col,PreferenceProperty, MyProperties, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
 addon_keymaps = []
