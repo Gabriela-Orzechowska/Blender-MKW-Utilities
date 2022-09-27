@@ -736,7 +736,7 @@ class KMPUtilities(bpy.types.Panel):
         layout.operator("kmpc.gobj")
         merge = layout.column()
         merge.operator("mkw.objectmerge")
-        if(bpy.context.object is not None):
+        if(bpy.context.object != None):
             current_mode = bpy.context.object.mode
         else:
             current_mode = 'OBJECT'
@@ -878,7 +878,7 @@ class AREAUtilities(bpy.types.Panel):
                     area_setting_column.prop(mytool, "kmp_areaRiidefiInvert")
 
         
-        if(bpy.context.object is not None):
+        if(bpy.context.object != None):
             current_mode = bpy.context.object.mode
         else:
             current_mode = 'OBJECT'
@@ -901,7 +901,7 @@ class CAMEUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
-        if(scene.frame_start is not 0 or scene.render.fps is not 60):
+        if(scene.frame_start != 0 or scene.render.fps != 60):
             layout.operator("came.setup")
         came_create_column = layout.column()
         came_create_column.operator("came.create")
@@ -913,7 +913,7 @@ class CAMEUtilities(bpy.types.Panel):
         layout.prop(mytool, "kmp_cameGoToNext")
         layout.prop(mytool, "kmp_cameStop")
 
-        if(bpy.context.object is not None):
+        if(bpy.context.object != None):
             current_mode = bpy.context.object.mode
         else:
             current_mode = 'OBJECT'
@@ -961,6 +961,7 @@ class MaterialUtilities(bpy.types.Panel):
         layout.operator("kmpt.hashed")
         layout.operator("kmpt.clip")
         layout.operator("kmpt.metalic")
+        layout.operator("kmpt.specular")
 
 class set_alpha_blend(bpy.types.Operator):
     bl_idname = "kmpt.blend"
@@ -1024,7 +1025,7 @@ class set_alpha_clip(bpy.types.Operator):
 class remove_specular_metalic(bpy.types.Operator):
     bl_idname = "kmpt.metalic"
     bl_label = "Remove Specular and Metalic"
-    bl_description = "Remove unwanted shininess from materials"
+    bl_description = "Removes unwanted shininess from materials"
     bl_options = {'UNDO'}
     def execute(self, context):
         selected = bpy.context.selected_objects
@@ -1042,7 +1043,27 @@ class remove_specular_metalic(bpy.types.Operator):
     
 
         return {'FINISHED'}
-        
+
+class restore_specular_metalic(bpy.types.Operator):
+    bl_idname = "kmpt.specular"
+    bl_label = "Restore Specular"
+    bl_description = "Restores shininess from materials"
+    bl_options = {'UNDO'}
+    def execute(self, context):
+        selected = bpy.context.selected_objects
+        for obj in selected:
+            if obj.type == 'MESH' and not obj.active_material == None:
+                for item in obj.material_slots:
+                    mat = bpy.data.materials[item.name]
+                    if mat.use_nodes:
+                        if(BLENDER_30):
+                            mat.node_tree.nodes['Principled BSDF'].inputs[7].default_value = 0.5
+                        else:                    
+                            mat.node_tree.nodes['Principled BSDF'].inputs[5].default_value = 0.5
+    
+
+        return {'FINISHED'}
+
 class add_vertex_col(bpy.types.Operator):
     bl_idname = "kmpt.vercolor"
     bl_label = "Add Vertex Colors Nodes"
@@ -1291,7 +1312,7 @@ class keyframes_to_route(bpy.types.Operator):
         for i in range(a):
             vectors.append(Vector(locations[i]))
         for i in range(a):
-            if(i is not a-1):
+            if(i != a-1):
                 sped = (vectors[i+1]- vectors[i]).length / keyframes[i+1] - keyframes[i]
                 speed.append(sped)
         speed.append(0)
@@ -1346,7 +1367,7 @@ class timeline_to_route(bpy.types.Operator):
         for i in range(a):
             vectors.append(Vector(locations[i]))
         for i in range(a):
-            if(i is not a-1):
+            if(i != a-1):
                 sped = math.floor((vectors[i+1]- vectors[i]).length) / (keyframes[i+1] - keyframes[i])
                 speed.append(sped)
         speed.append(0)
@@ -1449,7 +1470,7 @@ def get_duplicate_materials(og_material):
     duplicate_materials = []
     
     for material in bpy.data.materials:
-        if material is not og_material:
+        if material != og_material:
             name = material.name
             if name[-3:].isnumeric() and name[-4] == ".":
                 name = name[:-4]
@@ -1519,7 +1540,6 @@ class apply_kcl_flag(bpy.types.Operator):
             separated = [i for i in selection if i not in oldSelection]
             bpy.context.view_layer.objects.active = context.selected_objects[0]
             selection.append(context.selected_objects[0])
-            print(separated)
 
 
         variantPropName = "kclVariant" + mytool.kcl_masterType
@@ -1656,7 +1676,6 @@ class apply_kcl_flag(bpy.types.Operator):
             elif(mytool.kcl_applyMaterial == "2"):
                 color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable,mytool.kcl_shadow)
                 mat.diffuse_color = (color[0],color[1],color[2],1)
-                print(selection)
         if(wasInEditMode):
             for i in separated:
                 if i:
@@ -1717,7 +1736,6 @@ class add_blight(bpy.types.Operator):
             separated = [i for i in selection if i not in oldSelection]
             bpy.context.view_layer.objects.active = context.selected_objects[0]
             selection.append(context.selected_objects[0])
-            print(separated)
         elif not checkFlagInName001(active.name):
             self.report({"WARNING"}, "Object does have proper flag")
             return {'CANCELLED'}
@@ -1732,7 +1750,6 @@ class add_blight(bpy.types.Operator):
                 i.data.name = i.name
         else:
             i = active
-            print(i.name)
             if(i.name[-4]=="."):
                 i.name = i.name[:-4]
             bits = i.name[-4:]
@@ -1779,8 +1796,6 @@ class add_blight(bpy.types.Operator):
                 if(i.name[-4]=="."):
                     i.name = i.name[:-4]
                 flagOnly = i.name[-9:]
-                print(flagOnly[-4:])
-                print(flagOnly)
                 mat = bpy.data.materials.get(flagOnly)
                 if mat is None:
                     mat = bpy.data.materials.new(name=flagOnly)
@@ -2015,25 +2030,20 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             wkclt += (" --scale " + str(self.kclEncodeScale[:])[1:-1].replace(" ", ""))
         if(self.kclEncodeShift[:] != (0.0,0.0,0.0)):
             value = self.kclEncodeShift
-            print(value[:])
             if(self.kclEncodeUseScale):
                 value[0] = round(value[0] * self.kclExportScale,3)
                 value[1] = round(value[1] * self.kclExportScale,3)
                 value[2] = round(value[2] * self.kclExportScale,3)
-                
-            print(value[:])
             wkclt += (" --shift " + str(value[:])[1:-1].replace(" ", ""))
         
         if(self.kclEncodeRotate[:] != (0.0,0.0,0.0)):
             wkclt += (" --rot " + str(self.kclEncodeRotate[:])[1:-1].replace(" ", ""))
         if(self.kclEncodeTranslate[:] != (0.0,0.0,0.0)):
             value = self.kclEncodeTranslate
-            print(value[:])
             if(self.kclEncodeUseScale):
                 value[0] = round(value[0] * self.kclExportScale,4)
                 value[1] = round(value[1] * self.kclExportScale,4)
                 value[2] = round(value[2] * self.kclExportScale,4)
-            print(value[:])
             wkclt += (" --translate " + str(value[:])[1:-1].replace(" ", ""))
         
         wkclt += " --tri-area " + str(self.kclExportTriArea)
@@ -2122,7 +2132,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
             line = line.replace("\t","")
             line = line[:-48].strip()
             flag = line.split("=")[0]
-            if(flag is not ''):
+            if(flag != ''):
                 flags.append(flag)
             if not line:
                 a = False
@@ -2190,7 +2200,6 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
     daeExportScale : bpy.props.FloatProperty(name="Scale", default = 1)
 
 
-
     def execute(self, context):
         filepath = self.filepath
         os.system("del \"" + filepath[:-4]+"-pomidor.dae\"")
@@ -2237,7 +2246,7 @@ def get_duplicated_names(original_name):
     duplicated_names = []
     objects=[ob for ob in bpy.context.view_layer.objects if ob.visible_get()]
     for obj in objects:
-        if(obj.name is not original_name and obj.type == 'MESH'):
+        if(obj.name != original_name and obj.type == 'MESH'):
             
             name = obj.name
             if(name[-3:].isnumeric() and name[-4] =='.'):
@@ -2273,10 +2282,14 @@ def merge_duplicate(context):
 
 def merge_duplicate_flags(context):
     i = 0
+    active = context.active_object
     bpy.ops.object.select_all(action='DESELECT')
+    
     objects=[ob.name for ob in bpy.context.view_layer.objects if ob.visible_get() and checkFlagInName001(ob.name)]
     meshes=[ob.data for ob in bpy.context.view_layer.objects if ob.visible_get() and checkFlagInName001(ob.name)]
-	
+    if(active.name[-3:].isnumeric() and active.name[-4] == "."):
+        active.name = active.name[:-4]
+    activeName = active.name
     while i < len(objects):
         objName = objects[i]
         duplicate_names = get_duplicated_names(objName)
@@ -2293,7 +2306,13 @@ def merge_duplicate_flags(context):
         # MeshName = meshes[i].name
         # if(MeshName[-3:].isnumeric() and MeshName[-4] == "."):
         #     meshes[i].name = MeshName[:-4]
-        i=i+1    
+        i=i+1
+    try:
+        bpy.data.objects[activeName].select_set(True)
+        bpy.context.view_layer.objects.active = bpy.data.objects[activeName]
+    except ReferenceError:
+        pass
+        
     return True
 
 class merge_duplicate_objects(bpy.types.Operator):
@@ -2735,7 +2754,7 @@ def update_scene_handler(scene):
     if(loading == 0):
         currentFrameCount = scene.frame_end
 
-        if(currentFrameCount is not oldFrameCount):
+        if(currentFrameCount != oldFrameCount):
             for object in bpy.context.selected_objects:
                 updateCame(object,bpy.context)
             oldFrameCount = currentFrameCount
@@ -2820,7 +2839,7 @@ def update_scene_handler(scene):
                     mytool.kmp_areakHackerMode = "0"
                     mytool.kmp_areakHackerCheckpoint = 0
                     if(mytool.kmp_areaEnumType == "A10"):
-                        if(mytool.kmp_areaRoute == "1" or mytool.kmp_areaSet1 is not "0" or mytool.kmp_areaSet2 is not "0"):
+                        if(mytool.kmp_areaRoute == "1" or mytool.kmp_areaSet1 != "0" or mytool.kmp_areaSet2 != "0"):
                             mytool.kmp_areaUseCOOB = True
                         mytool.kmp_areaCOOBVersion = "kHacker" if mytool.kmp_areaRoute == 1 else "Riidefi"
                         if(mytool.kmp_areaCOOBVersion == "kHacker"):
@@ -3219,14 +3238,20 @@ class ExportOBJKCL(bpy.types.Operator, ExportHelper):
         default=1.0,
     )
 
+
     path_mode: path_reference_mode
 
     check_extension = True
+
+    def draw(self,context):
+        layout = self.layout
+        layout.label(text="There's no OBJKCL. Never was. I'm talking from outside of the system. We stop the simulation. Look under the pillow, you will find bag of gummy bears. Eat them all. You will fall asleep and wake up in 2009. We will start all over again.")
 
     def execute(self, context):
         from . import export_obj
 
         from mathutils import Matrix
+        filepath = self.filepath
         keywords = self.as_keywords(
             ignore=(
                 "axis_forward",
@@ -3253,7 +3278,7 @@ class ExportOBJKCL(bpy.types.Operator, ExportHelper):
 
 
 
-classes = [ add_vertex_col,PreferenceProperty, MyProperties, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [ add_vertex_col,PreferenceProperty, MyProperties, restore_specular_metalic, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
 addon_keymaps = []
