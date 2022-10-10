@@ -291,7 +291,7 @@ class MyProperties(bpy.types.PropertyGroup):
     kcl_variant : bpy.props.IntProperty(name= "Variant", min=0, max=7, default= 0,update=dummyKCLFunction)
     kcl_shadow : bpy.props.IntProperty(name= "Shadow", min=0, max=7, default= 0,update=dummyKCLFunction)
     kcl_trickable : bpy.props.BoolProperty(name= "Trickable", default=False,update=dummyKCLFunction)
-    kcl_drivable : bpy.props.BoolProperty(name= "Drivable", default=True,update=dummyKCLFunction)
+    kcl_drivable : bpy.props.BoolProperty(name= "Reject road", default=False,update=dummyKCLFunction)
     kcl_bounce : bpy.props.BoolProperty(name= "Soft Wall", default=False, description="Used to get rid of bean corners, use only on walls that meet road",update=dummyKCLFunction)
     
     kclVariantT00 : bpy.props.EnumProperty(name = "Variant", items=[("0", "Normal", ''),
@@ -1521,6 +1521,10 @@ class apply_kcl_flag(bpy.types.Operator):
         oldSelection = []
         separated = []
         lastActive = 0
+        if not bpy.context.object:
+            self.report({'WARNING'},"Check failed. No object found")
+            return {'CANCELLED'}
+
         current_mode = bpy.context.object.mode
         wasInEditMode = False
         scene = context.scene
@@ -1534,6 +1538,7 @@ class apply_kcl_flag(bpy.types.Operator):
             try:
                 bpy.ops.mesh.separate(type='SELECTED')
             except RuntimeError:
+                self.report({'WARNING'},"Nothing selected")
                 return {'CANCELLED'}
             bpy.ops.object.mode_set(mode='OBJECT')
             selection = context.selected_objects
@@ -1558,7 +1563,7 @@ class apply_kcl_flag(bpy.types.Operator):
         if(mytool.kcl_masterType in kcl_typeATypes):
             y = mytool.kcl_shadow
             y = '{:03b}'.format(int(y))
-            w = "0" + str(int(mytool.kcl_drivable == False)) + str(int(mytool.kcl_trickable))
+            w = "0" + str(int(mytool.kcl_drivable)) + str(int(mytool.kcl_trickable))
             typeaflag = w+"00"+y
         if(mytool.kcl_masterType == "T1A"):
             y = mytool.kcl_shadow
@@ -1677,7 +1682,7 @@ class apply_kcl_flag(bpy.types.Operator):
             if(mytool.kcl_applyMaterial == "0"):
                 mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
             elif(mytool.kcl_applyMaterial == "2"):
-                color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable,mytool.kcl_shadow)
+                color = getSchemeColor(context,mytool.kcl_masterType,mytool.kcl_trickable,mytool.kcl_drivable==False,mytool.kcl_shadow)
                 mat.diffuse_color = (color[0],color[1],color[2],1)
         if(wasInEditMode):
             for i in separated:
