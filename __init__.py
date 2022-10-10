@@ -1531,7 +1531,10 @@ class apply_kcl_flag(bpy.types.Operator):
             lastActive = context.active_object
             if(lastActive not in oldSelection):
                 oldSelection.append(lastActive)
-            bpy.ops.mesh.separate(type='SELECTED')
+            try:
+                bpy.ops.mesh.separate(type='SELECTED')
+            except RuntimeError:
+                return {'CANCELLED'}
             bpy.ops.object.mode_set(mode='OBJECT')
             selection = context.selected_objects
             if(lastActive not in selection):
