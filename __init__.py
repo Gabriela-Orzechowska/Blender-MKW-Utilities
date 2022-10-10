@@ -2106,7 +2106,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         default='*.kcl;*.szs',
         options={'HIDDEN'}
     )
-
+        
     kclImportColor : bpy.props.EnumProperty(name = "Imported colors", items=[("0", "Random color", ''),
                                                                         ("1", "Use custom scheme", '')],default="1")
     kclImportScale : bpy.props.FloatProperty(name = "Scale", default=0.01, max=100,min=0.0001)
@@ -2203,7 +2203,7 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         filepath = self.filepath
         os.system("del \"" + filepath[:-4]+"-pomidor.dae\"")
-        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode)
+        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH','ARMATURE'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode)
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         converterDir = "\"" + directory + "\\bin\\FbxConverter.exe" + "\""
