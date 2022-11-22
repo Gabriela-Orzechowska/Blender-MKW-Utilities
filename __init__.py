@@ -2174,7 +2174,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
     )
         
     kclImportColor : EnumProperty(name = "Imported colors", items=[("0", "Random color", ''),
-                                                                        ("1", "Use custom scheme", '')],default="1")
+                                                                    ("1", "Use custom scheme", '')],default="1")
     kclImportScale : FloatProperty(name = "Scale", default=0.01, max=100,min=0.0001)
 
     def execute(self, context):
@@ -2186,37 +2186,27 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         if(bpy.context.active_object):
             bpy.ops.object.mode_set(mode='OBJECT')
 
+
         #Decode KCL to OBJ
         filedata = ""
         currentTime = time.time() #Get the current time, add to filepath
         objFilepath = filepath[:-4] + str(currentTime) + ".obj"
         wkcltCommand = r'wkclt decode "' + filepath + r'" -o --dest "' + objFilepath + r'"'
         os.system(wkcltCommand)
-        
-        #Replace OBJ Groups with OBJ Objects
-        with open(objFilepath,"r") as f:
-            filedata = f.read()
-            filedata = filedata.replace('g ', 'o ')
-        if os.path.exists(objFilepath):
-            os.remove(objFilepath)
-        with open(objFilepath,"x") as f:
-            f.write(filedata)
 
         #Import OBJ to Blenduh
         bpy.ops.object.select_all(action='DESELECT')
-        if(BLENDER_33):
-            bpy.ops.wm.obj_import(filepath=objFilepath)
-        else:
-            bpy.ops.import_scene.obj(filepath=objFilepath)
+        bpy.ops.import_scene.obj(filepath=objFilepath,use_split_groups=True,use_image_search=False)
 
         context.view_layer.objects.active = bpy.context.selected_objects[0]
         objs = bpy.context.selected_objects
+        
         #Long ass scale commands
         bpy.ops.transform.resize(value=(self.kclImportScale, self.kclImportScale, self.kclImportScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
 
         #remove duplicated mats if they exists
         remove_all_duplicate_materials()
-
+        merge_duplicate_flags(context)
         for obj in objs:
             #Split the name for KCL Flags
             params = obj.name.upper().split("_")
@@ -2249,7 +2239,8 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         #Delete temp file
         if os.path.exists(objFilepath):
             os.remove(objFilepath)
-        
+            os.remove(objFilepath[:-3] + "mtl")
+        merge_duplicate_flags(context)
         return {'FINISHED'}
 
 class export_autodesk_dae(bpy.types.Operator, ExportHelper):
