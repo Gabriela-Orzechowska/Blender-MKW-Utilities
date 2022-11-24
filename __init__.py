@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
 bl_info = {
     "name" : "Mario Kart Wii Utilities",
     "author" : "Gabriela_",
@@ -46,77 +47,8 @@ BLENDER_33 = bpy.app.version[0] >= 3 and bpy.app.version[1] >= 3
 lastselection = []
 setting1users = ["A2", "A3", "A6", "A8", "A9", "A10"]
 setting2users = ["A3", "A6", "A10"]
-   
-def updateArea(self, context):
-    checkMaterial()
-    #0 - AREA Header
-    #1 - Number
-    #2 - Shape
-    #3 - Type
-    #4 - CAME
-    #5 - Priority
-    #6 - Setting 1
-    #7 - Setting 2
-    #8 - Route
-    #9 - Enemy Point
-    
-    global lastselection, setting1users, setting2users
-    scene = context.scene
-    mytool = scene.kmpt
-    activeObject = bpy.context.active_object
-    if(hasattr(activeObject, "name") == False):
-        return
 
-    if(lastselection == activeObject):
-        if(activeObject.name.startswith("AREA_")): 
-            name = activeObject.name
-            properties = name.split("_")
-            ctype = str(mytool.kmp_areaEnumType)
-            #Set properties to correct  values from variables
-            kmp_areaSet1 = "0"
-            kmp_areaSet2 = "0"
-            kmp_areaID = "-1"
-            if(ctype == 'A0'):
-                kmp_areaID = str(mytool.kmp_areaID)
-            kmp_areaRoute = "-1"
-            if(ctype == 'A3'):
-                kmp_areaRoute = str(mytool.kmp_areaRoute)
-            kmp_areaEnemy = "-1"
-            if(ctype == 'A4'):
-                kmp_areaEnemy = str(mytool.kmp_areaEnemy)
-            if(ctype == 'A1'):
-                kmp_areaSet1 = str(int(mytool.kmp_areaEvnKarehaUp))
-            elif(ctype == 'A2'):
-                kmp_areaSet1 = str(mytool.kmp_areaPostEffectEntry) 
-            elif(ctype == 'A3'):
-                kmp_areaSet1 = str(mytool.kmp_areaMovingRouteSet1) 
-                kmp_areaSet2 = str(mytool.kmp_areaMovingRouteSet2) 
-            elif(ctype == 'A6'):
-                kmp_areaSet1 = str(mytool.kmp_areaIDK1) 
-                kmp_areaSet2 = str(mytool.kmp_areaIDK2) 
-            elif(ctype == 'A8' or ctype == 'A9'):
-                kmp_areaSet1 = str(mytool.kmp_areaGroup)
-            elif(ctype == 'A10'):
-                if(mytool.kmp_areaUseCOOB):
-                    if(mytool.kmp_areaCOOBVersion == "kHacker"):
-                        kmp_areaRoute = "1"
-                        kmp_areaSet2 = str(mytool.kmp_areakHackerCheckpoint)
-                        kmp_areaSet1 = str(mytool.kmp_areakHackerMode)
-                    elif(mytool.kmp_areaCOOBVersion == "Riidefi"):
-                        kmp_areaRoute = "-1"
-                        if(mytool.kmp_areaRiidefiInvert == True):
-                            kmp_areaSet1 = str(mytool.kmp_areaRiidefiP2)
-                            kmp_areaSet2 = str(mytool.kmp_areaRiidefiP1)
-                        else:
-                            kmp_areaSet1 = str(mytool.kmp_areaRiidefiP1)
-                            kmp_areaSet2 = str(mytool.kmp_areaRiidefiP2)
-                                
-            areaName = properties[0] + "_" + properties[1] + "_"  + properties[2] + "_"  + str(mytool.kmp_areaEnumType[1:]) + "_"  + kmp_areaID + "_" +\
-            str(mytool.kmp_areaPrority) + "_"  + kmp_areaSet1 + "_"  + kmp_areaSet2 + "_"  + kmp_areaRoute + "_"  + kmp_areaEnemy
-            bpy.context.active_object.name = areaName
-            mat = bpy.data.materials.get("kmpc.area." + mytool.kmp_areaEnumType)
-            bpy.context.active_object.data.materials.clear()
-            bpy.context.active_object.data.materials.append(mat)
+
 def updateCame(self, context):
     
     global lastselection
@@ -156,6 +88,7 @@ def dummyKCLFunction(self,context):
     return
 
 class MyProperties(bpy.types.PropertyGroup):
+    global areaTypes
     
     #
     #
@@ -164,70 +97,6 @@ class MyProperties(bpy.types.PropertyGroup):
     #
     
     scale : FloatProperty(name= "Export scale", min= 0.0001, max= 100000, default= 100, description= "Set scale at which your KMP will be exported",update=dummyKCLFunction)
- #region area_types  
-
-    #AREA Section
-    kmp_areaEnumType : EnumProperty(name = "Type", items=[("A0", "Camera", 'Defines which camera is being used while entering this AREA'),
-                                                                    ("A1", "EnvEffect", 'Defines an area where EnvFire and EnvSnow is not used, and EnvKareha is used'),
-                                                                    ("A2", "BFG Entry Swapper", 'Controls which posteffect.bfg is being used'),
-                                                                    ("A3", "Moving Road", 'Causes moving road terrain in KCL to move'),
-                                                                    ("A4", "Destination Point", 'This AREA type is used as first destination for Force Recalculation'),
-                                                                    ("A5", "Minimap Control", 'Used to crop minimap on tournaments'),
-                                                                    ("A6", "BBLM Changer", 'Changes bloom and glow settings using .bblm files'),
-                                                                    ("A7", "Flying Boos", 'Flying Boos will appear while inside of this AREA (Requires b_teresa)'),
-                                                                    ("A8", "Object Grouper", 'Groups objects together'),
-                                                                    ("A9", "Group Unloader", 'Disables objects of selected group'),
-                                                                    ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')],
-                                                                    update=updateArea)
-    kmp_areaPrority : IntProperty(name = "Priority", min= 0, default= 0, update=updateArea, 
-                                            description= "When 2 AREAs of same type a overlapping then the one\with higher priority is getting considered")                                                                
-    kmp_areaSet1 : StringProperty(name = "Set1", default= "0", update=updateArea)
-    kmp_areaSet2 : StringProperty(name = "Set2", default= "0", update=updateArea)
-    #AREA0
-    kmp_areaID : IntProperty(name = "CAME", min= 0, default= 0, update=updateArea, 
-                                        description= "ID of camera which will be activated while entering AREA (Decimal)")
-    #AREA1
-    kmp_areaEvnKarehaUp : BoolProperty(name= "Use EnvKarehaUp?", update=updateArea, 
-                                                description= "If EnvKareha is being used, selecting this option will use EnvKarehaUp instead")
-    #AREA2
-    kmp_areaPostEffectEntry : IntProperty(name= "BFG Entry", min= 0, default= 0, update=updateArea,
-                                                    description= "ID of posteffect.bfg entry which will be used while inside of the AREA")
-    #AREA3
-    kmp_areaRoute : IntProperty(name= "Route", default= -1, update=updateArea, 
-                                            description= "A Route used by moving road KCL to push player along. Setting this to '-1' will moving road to push players towards this AREA origin point")
-    kmp_areaMovingRouteSet1 : IntProperty(name="Acceleration", soft_min= 0, default = 0, update=updateArea, 
-                                                    description= "Defines acceleration and deceleration speed for Variant 0x0002. The higher value, the easier is to speed up and harder to slow down")
-    kmp_areaMovingRouteSet2 : IntProperty(name="Speed", soft_min= 0, default = 0, update=updateArea, 
-                                                    description= "Defines the speed of moving water")
-    #AREA4
-    kmp_areaEnemy : IntProperty(name = "EN Point", default= -1, update=updateArea, 
-                                        description= "(Unsure) Defines the next enemy point ID (decimal) after entering AREA")
-    #AREA6
-    kmp_areaIDK1 : IntProperty(name = "BBLM file entry", min= 0, default= 0, update=updateArea, 
-                                        description= "Controls which posteffect.bblm* file to use. Number 0 defines default .bblm, value of * will use .bblm*")
-    kmp_areaIDK2 : IntProperty(name = "Transition time", min= 0, default= 0, update=updateArea, 
-                                        description= "Transition between entries in frames")
-    #AREA8&9
-    kmp_areaGroup : IntProperty(name = "Group", min= 0, default= 0, update=updateArea,
-                                        description= "Defines the group for AREA type 8 (Object Grouper) and 9 (Group Unloader) to work together")
-    #AREA10
-    kmp_areaUseCOOB : BoolProperty(name = "Conditional Out of Bounds?", default = False, 
-                                        description = "You can use this type of AREA as Conditional Out of Bounds (Both Riidefi's and kHacker's versions are supported)",
-                                                                    update=updateArea)
-    kmp_areaCOOBVersion : EnumProperty(name = "COoB Mode", items=[("kHacker", "kHacker35000vr", "Use kHacker's cheat code"),
-                                                                            ("Riidefi", "Ridefii", "Use Riidefi's cheat code\nThe AREA will be enabled if and only if a player is in the Cth checkpoint sector such that P1 <= C < P2.\nNOTE: If both P1 and P2 are zero, this code is disabled, and the boundary is unconditionally enabled.\nNOTE: If P1 > P2, the range functions in blacklist mode. The AREA will be disabled within P2 <= C < P1, and enabled everywhere else.")],
-                                                                    update=updateArea)
-    kmp_areakHackerMode : EnumProperty(name = "In KCP region", items=[("0", "Enable COoB", 'Enables this Fall Boundaries while inside entered key checkpoint region'),
-                                                                            ("1", "Disable COoB", 'Disables this Fall Boundaries while inside entered key checkpoint region')],
-                                                                    update=updateArea)
-    kmp_areakHackerCheckpoint : IntProperty(name = "KCL Region", min = 0, max = 255, description = "Condition is met while player is inside this key checkpoint region",
-                                                                    update=updateArea)
-    kmp_areaRiidefiP1 : IntProperty(name="Checkpoint 1 (P1)", min = 0, max = 255, description = "First checkpoint of the range (P1 <= C < P2)", update=updateArea)
-    kmp_areaRiidefiP2 : IntProperty(name="Checkpoint 2 (P2)", min = 0, max = 255, description = "Second checkpoint of the range (P1 <= C < P2)", update=updateArea)
-    kmp_areaRiidefiInvert : BoolProperty(name="Invert", description = "Checking this option will invert when condition is meet. For example if you have this AREA enabled only when the player is in chosen checkpoint range, it will make it enabled only when the player is OUTSIDE chosen checkpoint range", update=updateArea) 
-
-
-#endregion
  #region came_types
     kmp_cameEnumType : EnumProperty(name = "Type", items=[("B5", "Opening", "Opening camera, follows route; from its position, it looks at View Start and shifts view to View End if set, otherwise looks at player. This camera type only requires a route. It does not need an AREA Entry."),
                                                                     ("B0", "Goal", "Activates immediately after passing the goal; with the player as the origin, the camera's View Start position both follows and points towards View End."),
@@ -616,7 +485,7 @@ class MyProperties(bpy.types.PropertyGroup):
 
     kclFinalFlag : StringProperty(name = "Flag")                                                            
 #endregion
- #region kcl_settings
+#region kcl_settings
     kcl_applyMaterial : EnumProperty(name = "Material", items=[("0", "Random color", ''),
                                                                         ("2", "Use custom scheme", ''),
                                                                         ("1", "Keep original", '')],default="2",update=dummyKCLFunction)
@@ -666,7 +535,17 @@ labelDict = {
     
 
 }
-
+areaTypes = [("A0", "Camera", 'Defines which camera is being used while entering this AREA'),
+            ("A1", "EnvEffect", 'Defines an area where EnvFire and EnvSnow is not used, and EnvKareha is used'),
+            ("A2", "BFG Entry Swapper", 'Controls which posteffect.bfg is being used'),
+            ("A3", "Moving Road", 'Causes moving road terrain in KCL to move'),
+            ("A4", "Destination Point", 'This AREA type is used as first destination for Force Recalculation'),
+            ("A5", "Minimap Control", 'Used to crop minimap on tournaments'),
+            ("A6", "BBLM Changer", 'Changes bloom and glow settings using .bblm files'),
+            ("A7", "Flying Boos", 'Flying Boos will appear while inside of this AREA (Requires b_teresa)'),
+            ("A8", "Object Grouper", 'Groups objects together'),
+            ("A9", "Group Unloader", 'Disables objects of selected group'),
+            ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')]
 current_version = "v0.1.10.1"
 latest_version = "v0.1.10.1"
 prerelease_version = "v0.1.10.1"
@@ -837,7 +716,7 @@ class KCLUtilities(bpy.types.Panel):
             layout.operator("kcl.export")
         
 class AREAUtilities(bpy.types.Panel):
-    bl_label = "AREA Utilities (Deprecated)"
+    bl_label = "AREA Utilities"
     bl_idname = "MKW_PT_KmpArea"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -856,41 +735,49 @@ class AREAUtilities(bpy.types.Panel):
         area_create_column = layout.column()
         area_create_column.operator("kmpc.c_cube_area")
         area_create_column.operator("kmpc.c_cylinder_area")
-        
-        layout.label(text="AREA Settings")
-        area_setting_column = layout.column()
-        area_setting_column.prop(mytool, "kmp_areaEnumType")
-        area_setting_column.prop(mytool, "kmp_areaPrority")
-        if(mytool.kmp_areaEnumType == "A0"):
-            area_setting_column.prop(mytool, "kmp_areaID")
-        elif(mytool.kmp_areaEnumType == "A1"):
-            area_setting_column.prop(mytool, "kmp_areaEvnKarehaUp")
-        elif(mytool.kmp_areaEnumType == "A2"):
-            area_setting_column.prop(mytool, "kmp_areaPostEffectEntry")
-        elif(mytool.kmp_areaEnumType == "A3"):
-            area_setting_column.prop(mytool, "kmp_areaRoute")
-            area_setting_column.label(text="Variant 0x0002 Settings ")
-            area_setting_column.prop(mytool, "kmp_areaMovingRouteSet1")
-            area_setting_column.prop(mytool, "kmp_areaMovingRouteSet2")
-        elif(mytool.kmp_areaEnumType == "A4"):
-             area_setting_column.prop(mytool, "kmp_areaEnemy")
-        elif(mytool.kmp_areaEnumType == "A6"):
-             area_setting_column.prop(mytool, "kmp_areaIDK1")
-             area_setting_column.prop(mytool, "kmp_areaIDK2")
-        elif(mytool.kmp_areaEnumType == "A8" or mytool.kmp_areaEnumType == "A9"):
-             area_setting_column.prop(mytool, "kmp_areaGroup")
-        elif(mytool.kmp_areaEnumType == "A10"):
-            area_setting_column.prop(mytool, "kmp_areaUseCOOB")
-            if(mytool.kmp_areaUseCOOB):
-                area_setting_column.prop(mytool, "kmp_areaCOOBVersion")
-                if(mytool.kmp_areaCOOBVersion == "kHacker"):
-                    area_setting_column.prop(mytool, "kmp_areakHackerMode")
-                    area_setting_column.prop(mytool, "kmp_areakHackerCheckpoint")
-                elif(mytool.kmp_areaCOOBVersion == "Riidefi"):
-                    area_setting_column.prop(mytool, "kmp_areaRiidefiP1")
-                    area_setting_column.prop(mytool, "kmp_areaRiidefiP2")
-                    area_setting_column.prop(mytool, "kmp_areaRiidefiInvert")
 
+        active = context.active_object
+
+        
+        if(active):
+            layout.label(text="AREA Settings")
+            ac_area_type = active.area_type
+
+        area_settings = layout.column()
+        
+        if(active):
+            area_settings.prop(active,"is_area")
+            area_settings.prop(active,"area_type")
+            area_settings.prop(active,"area_pror")
+            if(ac_area_type == 'A0'):
+                area_settings.prop(active,"area_id")
+            elif(ac_area_type == 'A1'):
+                area_settings.prop(active,"area_kareha")
+            elif(ac_area_type == 'A2'):
+                area_settings.prop(active,"area_bfg")
+            elif(ac_area_type == 'A3'):
+                area_settings.prop(active,"area_route")
+                area_settings.label(text="Variant 0x0002 Settings ")
+                area_settings.prop(active,"area_acc")
+                area_settings.prop(active,"area_spd")
+            elif(ac_area_type == 'A4'):
+                area_settings.prop(active,"area_enpt")
+            elif(ac_area_type == 'A6'):
+                area_settings.prop(active,"area_bblm")
+                area_settings.prop(active,"area_bblm_trans")
+            elif(ac_area_type in ['A8','A9']):
+                area_settings.prop(active,"area_group")
+            elif(ac_area_type == 'A10'):
+                area_settings.prop(active,"area_coob_enabled")
+                if(active.area_coob_enabled):
+                    area_settings.prop(active,"area_coob_version")
+                    if(active.area_coob_version == 'Riidefi'):
+                        area_settings.prop(active,"area_coob_rii_p1")
+                        area_settings.prop(active,"area_coob_rii_p2")
+                        area_settings.prop(active,"area_coob_rii_invert")
+                    else:
+                        area_settings.prop(active,"area_coob_kevin_mode")
+                        area_settings.prop(active,"area_coob_kevin_checkpoint")
         
         if(bpy.context.object != None):
             current_mode = bpy.context.object.mode
@@ -2448,25 +2335,62 @@ class kmp_area (bpy.types.Operator):
         x = 0
             
         for object in selected:
-            if not object.name.startswith("AREA_"):
+            if not object.is_area:
                 continue
             object_position = object.location
-            name = object.name
-            properties = name.split("_")
-            areaNumber = '{0:0{1}X}'.format(int(properties[1]), 2)
-            areaShape = '{0:0{1}X}'.format(int(properties[2]), 2)
-            areaType = '{0:0{1}X}'.format(int(properties[3]), 2)
-            areaID = "FF" if properties[4] == "-1" else '{0:0{1}X}'.format(int(properties[4]), 2)
-            areaPrority = '{0:0{1}X}'.format(int(properties[5]), 2)
-            areaSet1 = '{0:0{1}X}'.format(int(properties[6]), 4)
-            areaSet2 = '{0:0{1}X}'.format(int(properties[7]), 4)
+
+
+
+            areaNumber = '{0:0{1}X}'.format(x,2)
+            areaShape = '{0:0{1}X}'.format(int(object.area_shape),2)
+            areaType = '{0:0{1}X}'.format(int(object.area_type[1:],16),2)
+            areaID = "FF"
+            if(object.area_id != -1 and object.area_type == 'A0'):
+                areaID = '{0:0{1}X}'.format(int(object.area_id), 2)
+            areaPrority = object.area_pror
+            areaSet1 = 0
+            areaSet2 = 0
+            areaRoute = "FF"
+            areaEnemy = "FF"
+            if(object.area_type == 'A1'):
+                areaSet1 = int(object.area_kareha)
+            elif(object.area_type == 'A2'):
+                areaSet1 = object.area_bfg
+            elif(object.area_type == 'A3'):
+                areaSet1 = object.area_acc
+                areaSet2 = object.area_spd
+                areaRoute = '{0:0{1}X}'.format(int(properties[8]), 2)
+            elif(object.area_type == 'A4'):
+                if(object.area_enemy != -1):
+                    areaEnemy = '{0:0{1}X}'.format(int(properties[9]), 2)
+            elif(object.area_type == 'A6'):
+                areaSet1 = object.area_bblm
+                areaSet2 = object.area_bblm_trans
+            elif(object.area_type in ['A8','A9']):
+                areaSet1 = object.area_group
+            elif(object.area_type == 'A10'):
+                if(object.area_coob_enabled):
+                    if(object.area_coob_version == "kHacker"):
+                        areaRoute = 1
+                        areaSet1 = object.area_coob_kevin_mode
+                        areaSet2 = object.area_coob.kevin_checkpoint
+                    else:
+                        areaRoute = "FF"
+                        areaSet1 = object.area_coob_rii_p1
+                        areaSet2 = object.area_coob_rii_p2
+                        if(object.area_coob_rii_invert):
+                            areaSet1 = object.area_coob_rii_p2
+                            areaSet2 = object.area_coob_rii_p1
+                            
+                        
+            areaSet1 = '{0:0{1}X}'.format(int(areaSet1), 4)
+            areaSet2 = '{0:0{1}X}'.format(int(areaSet2), 4)
             areaSet = str(areaSet1) + str(areaSet2)
-            areaRoute = '{0:0{1}X}'.format(int(properties[8]), 2)
-            if properties[8] == "-1":
-                areaRoute = "FF"
-            areaEnemy = '{0:0{1}X}'.format(int(properties[9]), 2)
-            if properties[9] == "-1":
-                areaEnemy = "FF"
+            if(areaRoute != "FF"):
+                areaRoute = '{0:0{1}X}'.format(int(areaRoute), 2)
+            if(areaEnemy != "FF"):
+                areaEnemy = '{0:0{1}X}'.format(int(areaEnemy), 2)
+                
             xpos = round(object_position[0] * scale, 2)
             ypos = round(object_position[2] * scale, 2)
             zpos = round(object_position[1] * scale * -1, 2)
@@ -2476,14 +2400,50 @@ class kmp_area (bpy.types.Operator):
             xscl = round(object.scale[0],2)
             yscl = round(object.scale[2],2)
             zscl = round(object.scale[1],2)
-            dataValue = str("%02d" % x) + "\t" + str(areaShape) + "\t" + str(areaType) + "\t" + str(areaID) + "\t" + str(areaPrority)  + "\t" +\
-            str(xpos) + "\t" + str(ypos) + "\t" + str(zpos) + "\t" + str(xrot) + "\t" + str(yrot) + "\t" + str(zrot) + "\t" + str(xscl) + "\t" + str(yscl) + "\t" + str(zscl) +\
-            "\t" + str(areaSet) + "\t" + str(areaRoute) + str(areaEnemy) + "\t0000\n"
+            myData = [
+                str(areaNumber),
+                str(areaShape),
+                str(areaType),
+                str(areaID),
+                str(areaPrority),
+                str(xpos),
+                str(ypos),
+                str(zpos),
+                str(xrot),
+                str(yrot),
+                str(zrot),
+                str(xscl),
+                str(yscl),
+                str(zscl),
+                str(areaSet),
+                str(areaRoute) + str(areaEnemy),
+                '0000\n']
+            dataValue = "\t".join(myData)
+            print(dataValue)
             data = data + dataValue
             x = x + 1
             
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
+
+def create_collection(*args,name="MyCollection"):
+    cols = [col for col in bpy.data.collections if col.name==name]
+    if not cols:
+        myCol = bpy.data.collections.new(name)
+        bpy.context.scene.collection.children.link(myCol)
+    cols = bpy.context.scene.collection.children.get(name)
+    for arg in args:
+        if not hasattr(arg,"type"):
+            continue
+        if arg.type != 'MESH':
+            continue
+        for coll in arg.users_collection:
+            coll.objects.unlink(arg)
+        cols.objects.link(arg)
+    bpy.context.view_layer.objects.active = args[0]
+    
+
+
 
 class kmp_c_cube_area (bpy.types.Operator):
     bl_idname = "kmpc.c_cube_area"
@@ -2495,30 +2455,20 @@ class kmp_c_cube_area (bpy.types.Operator):
         mytool = scene.kmpt
         scale = mytool.scale
         cursor_position = context.scene.cursor.location
-        
-        existingAreas = 0
-        for obj in bpy.data.objects:
-            if "area_" in obj.name.lower():
-                existingAreas = existingAreas + 1
+        bpy.ops.object.select_all(action='DESELECT')
         
         bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=cursor_position)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
         bpy.ops.object.mode_set(mode='OBJECT')
+
         activeObject = bpy.context.active_object
-        activeObject.name = "AREA_" + str(existingAreas) + "_0_0_0_0_0_0_-1_0"
-        updateArea(self, context)
-        name = activeObject.name
-        properties = name.split("_")
-        mytool.kmp_areaEnumType = "A" + properties[3]
-        mytool.kmp_areaID = int(float(properties[4]))
-        mytool.kmp_areaPrority = int(properties[5])
-        mytool.kmp_areaSet1 = properties[6]
-        mytool.kmp_areaSet2 = properties[7]
-        mytool.kmp_areaRoute = int(properties[8])
-        mytool.kmp_areaEnemy = int(properties[9])
-          
+        activeObject.name = "New Cubic Area"
+        activeObject.is_area = True
+        create_collection(activeObject,name="[AREA]")
+        
+        
         return {'FINISHED'}
 
 class kmp_c_cylinder_area (bpy.types.Operator):
@@ -2532,28 +2482,17 @@ class kmp_c_cylinder_area (bpy.types.Operator):
         scale = mytool.scale
         cursor_position = context.scene.cursor.location
         
-        existingAreas = 0
-        for obj in bpy.data.objects:
-            if "area_" in obj.name.lower():
-                existingAreas = existingAreas + 1
-        
         bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=cursor_position, vertices=128)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
         bpy.ops.object.mode_set(mode='OBJECT')
+
         activeObject = bpy.context.active_object
-        activeObject.name = "AREA_" + str(existingAreas) + "_1_0_0_0_0_0_-1_0"
-        updateArea(self, context)
-        name = activeObject.name
-        properties = name.split("_")
-        mytool.kmp_areaEnumType = "A" + properties[3]
-        mytool.kmp_areaID = int(float(properties[4]))
-        mytool.kmp_areaPrority = int(properties[5])
-        mytool.kmp_areaSet1 = properties[6]
-        mytool.kmp_areaSet2 = properties[7]
-        mytool.kmp_areaRoute = int(properties[8])
-        mytool.kmp_areaEnemy = int(properties[9])
+        activeObject.name = "New Cylindrical Area"
+        activeObject.is_area = True
+        activeObject.area_shape = True
+        create_collection(activeObject,name="[AREA]")
         return {'FINISHED'}
   
 loading = 0
@@ -2573,87 +2512,80 @@ class load_kmp_area(bpy.types.Operator, ImportHelper):
         scale = mytool.scale
         global loading
         loading = 1
-        
-        checkMaterial()
-        
+
         path = self.filepath
-        file = open(path, "rb")
-        magic = struct.unpack('4s', file.read(4))[0].decode("ascii")
-        if(magic != "RKMD"):
-            self.report({"WARNING"}, "Wrong file magic")
-            return {'CANCELLED'}
-        
-        fileLen = struct.unpack(">I", file.read(4))[0]
-        sectionNumber = struct.unpack(">H", file.read(2))[0]
-        headerLen = struct.unpack(">H", file.read(2))[0]
-        versionNumber = struct.unpack(">I", file.read(4))[0]
-        sectionOffsets = []
-        for i in range(int(sectionNumber)):
-            sectionOffsets.append(struct.unpack(">I", file.read(4))[0])
-        
-        existingAreas = 0
-        for obj in bpy.data.objects:
-            if "area_" in obj.name.lower():
-                existingAreas = existingAreas + 1
-        
-        areaOffset = 80 + sectionOffsets[9]
-        file.seek(areaOffset, 0)
-        areaNumber = struct.unpack('>H', file.read(2))[0]
-        areaUnused = struct.unpack('>H', file.read(2))[0]
-        scale = mytool.scale
-        areas = []
-        for i in range(int(areaNumber)):
-            areaShape = struct.unpack('>b', file.read(1))[0]
-            areaType = struct.unpack('>b', file.read(1))[0]
-            areaCAME = struct.unpack('>b', file.read(1))[0]
-            areaPriority = struct.unpack('>b', file.read(1))[0]
-            areaXPos = struct.unpack('>f', file.read(4))[0]
-            areaYPos = struct.unpack('>f', file.read(4))[0]
-            areaZPos = struct.unpack('>f', file.read(4))[0]
-            areaXRot = struct.unpack('>f', file.read(4))[0]
-            areaYRot = struct.unpack('>f', file.read(4))[0]
-            areaZRot = struct.unpack('>f', file.read(4))[0]
-            areaXScale = struct.unpack('>f', file.read(4))[0]
-            areaYScale = struct.unpack('>f', file.read(4))[0]
-            areaZScale = struct.unpack('>f', file.read(4))[0]
-            areaSet1 = struct.unpack('>H', file.read(2))[0]
-            areaSet2 = struct.unpack('>H', file.read(2))[0]
-            areaRoute = struct.unpack('>B', file.read(1))[0]
-            areaEnemy = struct.unpack('>B', file.read(1))[0]
-            areaPadding = struct.unpack('>h', file.read(2))[0]
-            if(areaEnemy == 255):
-                areaEnemy = -1
-            if(areaRoute == 255):
-                areaRoute = -1
-            areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
-            areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
-            areaScale = (areaXScale, areaZScale, areaYScale)
-            areaName = "AREA_" + str(existingAreas + i) + "_" + '{:X}'.format(areaShape) + "_" + str(int(areaType)) + "_" + str(int(areaCAME))\
-            + "_" + '{:X}'.format(areaPriority) + "_" + '{:X}'.format(areaSet1) + "_" + '{:X}'.format(areaSet2) + "_" + str(areaRoute) + "_" + str(areaEnemy)
-            areaName = areaName.upper()
-            if(str(areaShape) == "0"):
-                bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation, rotation=areaRotation)
-                obj = bpy.context.selected_objects[0]
-                obj.name = areaName
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.transform.resize(value=areaScale, orient_type='LOCAL')      
-            if(str(areaShape) == "1"):
-                bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=areaLocation, rotation=areaRotation)
-                obj = bpy.context.selected_objects[0]
-                obj.name = areaName
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.transform.resize(value=areaScale, orient_type='LOCAL')          
-            activeObject = bpy.context.active_object
-            mat = bpy.data.materials.get("kmpc.area.A" + str(int(areaType)))
-            activeObject.data.materials.append(mat)
+        kmp_areas = []
+        with open(path,"rb") as file:
+            magic = struct.unpack('4s', file.read(4))[0].decode("ascii")
+            if(magic != "RKMD"):
+                self.report({"WARNING"}, "Wrong file magic")
+                return {'CANCELLED'}
             
-        file.close()
+            fileLen = struct.unpack(">I", file.read(4))[0]
+            sectionNumber = struct.unpack(">H", file.read(2))[0]
+            headerLen = struct.unpack(">H", file.read(2))[0]
+            versionNumber = struct.unpack(">I", file.read(4))[0]
+            sectionOffsets = []
+            for i in range(int(sectionNumber)):
+                sectionOffsets.append(struct.unpack(">I", file.read(4))[0])
+            
+            
+            areaOffset = 80 + sectionOffsets[9]
+            file.seek(areaOffset, 0)
+            areaNumber = struct.unpack('>H', file.read(2))[0]
+            areaUnused = struct.unpack('>H', file.read(2))[0]
+            scale = mytool.scale
+            areas = []
+            for i in range(int(areaNumber)):
+                areaShape = struct.unpack('>b', file.read(1))[0]
+                areaType = struct.unpack('>b', file.read(1))[0]
+                areaCAME = struct.unpack('>b', file.read(1))[0]
+                areaPriority = struct.unpack('>b', file.read(1))[0]
+                areaXPos = struct.unpack('>f', file.read(4))[0]
+                areaYPos = struct.unpack('>f', file.read(4))[0]
+                areaZPos = struct.unpack('>f', file.read(4))[0]
+                areaXRot = struct.unpack('>f', file.read(4))[0]
+                areaYRot = struct.unpack('>f', file.read(4))[0]
+                areaZRot = struct.unpack('>f', file.read(4))[0]
+                areaXScale = struct.unpack('>f', file.read(4))[0]
+                areaYScale = struct.unpack('>f', file.read(4))[0]
+                areaZScale = struct.unpack('>f', file.read(4))[0]
+                areaSet1 = struct.unpack('>H', file.read(2))[0]
+                areaSet2 = struct.unpack('>H', file.read(2))[0]
+                areaRoute = struct.unpack('>B', file.read(1))[0]
+                areaEnemy = struct.unpack('>B', file.read(1))[0]
+                areaPadding = struct.unpack('>h', file.read(2))[0]
+                if(areaEnemy == 255):
+                    areaEnemy = -1
+                if(areaRoute == 255):
+                    areaRoute = -1
+                areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
+                areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
+                areaScale = (areaXScale, areaZScale, areaYScale)
+                obj = None
+                activeObject = None
+                if(str(areaShape) == "0"):
+                    bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation, rotation=areaRotation)
+                    activeObject = bpy.context.active_object
+                    activeObject.area_shape = False
+                if(str(areaShape) == "1"):
+                    bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=areaLocation, rotation=areaRotation)
+                    activeObject = bpy.context.active_object
+                    activeObject.area_shape = True
+                
+                activeObject.is_area = True
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.transform.translate(value=(0,0,5000/scale), orient_type='GLOBAL')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.transform.resize(value=areaScale, orient_type='LOCAL')        
+                string_areaType = 'A'+str(areaType)
+                activeObject.area_type = string_areaType
+                activeObject.area_pror = areaPriority
+                activeObject.name = "KMP AREA {0}: ".format(i)
+                create_collection(activeObject,name="[AREA]")
+
+        
         loading = 0
         return {'FINISHED'}
 
@@ -2780,15 +2712,6 @@ def checkFlagInName001(name):
     result = checkFlagInName(name)
     return result
 
-def checkMaterial():
-    for i in range(11):   
-        matName = "kmpc.area.A" + str(i)
-        mat = bpy.data.materials.get(matName)
-        if mat is None:
-            mat = bpy.data.materials.new(matName)
-            mat.diffuse_color = matColors[i]
-            mat.blend_method = 'BLEND' 
-            
 oldFrameCount = 250
 from mathutils import Matrix
 casting = False
@@ -3335,6 +3258,160 @@ class ExportOBJKCL(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         pass
 
+def update_area_material(self,context):
+    if not context:
+        return
+    obj = context.active_object
+    define_area_mats()
+    mat = bpy.data.materials.get("kmpc.area." + obj.area_type)
+    obj.data.materials.clear()
+    obj.data.materials.append(mat) 
+
+def register_area():
+    global areaTypes
+
+    bpy.types.Object.is_area = BoolProperty(
+        name="Is AREA?",
+        default=False,
+        update=update_area_material
+    )
+    bpy.types.Object.area_shape = BoolProperty(
+        default = False
+    )
+    bpy.types.Object.area_type = EnumProperty(
+        name="Area Type",
+        items=areaTypes,
+        default='A0',
+        update=update_area_material
+    )
+    bpy.types.Object.area_pror = IntProperty(
+        name = "Priority", 
+        min= 0, 
+        default= 0, 
+        max=255,
+        description= "When 2 AREAs of same type a overlapping then the one\with higher priority is getting considered"
+    )            
+    bpy.types.Object.area_id = IntProperty(
+        name = "CAME Index",
+        min=0,
+        default=0,
+        max=255,
+        description= "ID of camera which will be activated while entering AREA (Decimal)"
+    )          
+    bpy.types.Object.area_kareha = BoolProperty(
+        name = "Use EnvKarehaUp",
+        default = False,
+        description= "If EnvKareha is being used, selecting this option will use EnvKarehaUp instead"
+    )
+    bpy.types.Object.area_bfg = IntProperty(
+        name = "BFG Entry",
+        min = 0,
+        default = 0,
+        max = 255,
+        description= "ID of posteffect.bfg entry which will be used while inside of the AREA"
+    )
+    bpy.types.Object.area_route = IntProperty(
+        name = "Route",
+        min = 0,
+        default = 0,
+        max = 255,
+        description= "A Route used by moving road KCL to push player along. Setting this to '-1' will moving road to push players towards this AREA origin point"
+    )
+    bpy.types.Object.area_acc = IntProperty(
+        name = "Acceleration",
+        min = 0,
+        default = 0,
+        max = 65535,
+        description= "Defines acceleration and deceleration speed for Variant 0x0002. The higher value, the easier is to speed up and harder to slow down"
+    )
+    bpy.types.Object.area_spd =  IntProperty(
+        name = "Speed",
+        min = 0,
+        default = 0,
+        max = 65535,
+        description="Defines the speed of moving water"
+    )
+    bpy.types.Object.area_enpt = IntProperty(
+        name = "Enemy Point",
+        default = -1,
+        min = -1,
+        max = 254,
+        description="Defines the next enemy point for CPU when colliding with Force Recalculation KCL"
+    )
+    bpy.types.Object.area_bblm = IntProperty(
+        name = "BBLM File Entry",
+        default = 0,
+        min = 0,
+        max = 255,
+        description="Controls the index of posteffect.bblm to use, being 0 the default file, 1 posteffect.bblm1 and so on"
+    )
+    bpy.types.Object.area_bblm_trans = IntProperty(
+        name = "Transition Time",
+        default = 30,
+        min = 0,
+        max = 65535,
+        description = "Transition between entries in frames"
+    )
+    bpy.types.Object.area_group = IntProperty(
+        name = "Group",
+        min = 0,
+        max = 65535,
+        default = 0,
+        description= "Defines the group for AREA type 8 (Object Grouper) and 9 (Group Unloader) to work together"
+    )
+    bpy.types.Object.area_coob_enabled = BoolProperty(
+        name = "Use as COoB",
+        default = False,
+        description = "Use this type of AREA as Conditional Out of Bounds (Both Riidefi's and kHacker's versions are supported)"
+    )
+    bpy.types.Object.area_coob_version = EnumProperty(
+        name = "COoB Mode", 
+        items=[("kHacker", "kHacker35000vr", "Use kHacker's cheat code"),
+              ("Riidefi", "Ridefii", "Use Riidefi's cheat code\nThe AREA will be enabled if and only if a player is in the Cth checkpoint sector such that P1 <= C < P2.\nNOTE: If both P1 and P2 are zero, this code is disabled, and the boundary is unconditionally enabled.\nNOTE: If P1 > P2, the range functions in blacklist mode. The AREA will be disabled within P2 <= C < P1, and enabled everywhere else.")],
+        default='Riidefi'
+    )
+    bpy.types.Object.area_coob_kevin_mode = EnumProperty(
+        name = "In KCP region", 
+        items=[("0", "Enable COoB", 'Enables this Fall Boundaries while inside entered key checkpoint region'),
+            ("1", "Disable COoB", 'Disables this Fall Boundaries while inside entered key checkpoint region')],
+        default = '0'
+    )
+    bpy.types.Object.area_coob_kevin_checkpoint = IntProperty(
+        name = "KCL Region",
+        min = 0,
+        max = 255,
+
+    )
+    bpy.types.Object.area_coob_rii_p1 = IntProperty(
+        name = "Checkpoint 1 (P1)",
+        min = 0,
+        max = 255,
+        default = 0,
+        description = "First checkpoint of the range (P1 <= C < P2)"
+    )
+    bpy.types.Object.area_coob_rii_p2 = IntProperty(
+        name = "Checkpoint 2 (P2)",
+        min = 0,
+        max = 255,
+        default = 0,
+        description = "Second checkpoint of the range (P1 <= C < P2)"
+    )
+    bpy.types.Object.area_coob_rii_invert = BoolProperty(
+        name = "Invert condition",
+        default = False,
+        description = "Checking this option will invert when condition is meet. For example if you have this AREA enabled only when the player is in chosen checkpoint range, it will make it enabled only when the player is OUTSIDE chosen checkpoint range"
+    )
+
+
+def define_area_mats():
+    for i in range(11):   
+        matName = "kmpc.area.A" + str(i)
+        mat = bpy.data.materials.get(matName)
+        if mat is None:
+            mat = bpy.data.materials.new(matName)
+            mat.diffuse_color = matColors[i]
+            mat.blend_method = 'BLEND' 
+    
 
 
 classes = [get_vertex_color, add_vertex_col,PreferenceProperty, MyProperties, restore_specular_metalic, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
@@ -3349,6 +3426,8 @@ def register():
     script_file = os.path.normpath(__file__)
     directory = os.path.dirname(script_file)
     if directory.endswith("Blender-KMP-Utilities"):
+        
+        register_area()
         for cls in classes:
             bpy.utils.register_class(cls)
         bpy.app.handlers.frame_change_post.append(frame_change_handler)
@@ -3362,6 +3441,7 @@ def register():
         
     else:
         bpy.utils.register_class(BadPluginInstall)
+
 
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
