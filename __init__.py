@@ -109,16 +109,12 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                     ("B8", "MissionSuccess", 'Unknown'),
                                                                     ("B9", "Unknown", 'Unknown')],
                                                                     update=updateCame)
-    kmp_cameCustomId : IntProperty(name= "Custom Index (Read desc)", min= -1, default= -1, update=updateCame, 
-                                            description= "Overwrite CAME index, can't skip numbers, make sure it does not collide with others in KMP")
-    kmp_cameOpNext : IntProperty(name= "Next Camera", min= -1, default= -1, update=updateCame, 
-                                            description= "Next Opening Camera to use after finishing")
-    kmp_cameRoute : IntProperty(name= "Custom Route ID", min= -1, default= -1, update=updateCame, 
-                                            description= "Can be filled later in KMP Cloud unless you sure it is correct")
     kmp_cameRes : IntProperty(name= "Timeline route resolution", min= 2, default= 20, update=updateCame, 
                                             description= "Amount of points to create from timeline")
     kmp_cameGoToNext : BoolProperty(name= "Switch to next after finished", description="Play the next camera (if found) after finishing")
     kmp_cameStop : BoolProperty(name="Disable looping", description="Disable automatic looping of animation")
+    kmp_cameOffset : IntProperty(name="ID Offset", default=0, min=0,max=255,description="Add an offset to exported IDs")
+    kmp_cameRouteOffset : IntProperty(name="Route ID Offset", default=0, min=0,max=255,description="Add an offset to exported Route IDs")
 #endregion
  #region kcl_types   
 
@@ -735,8 +731,10 @@ class AREAUtilities(bpy.types.Panel):
         area_create_column = layout.column()
         area_create_column.operator("kmpc.c_cube_area")
         area_create_column.operator("kmpc.c_cylinder_area")
-
-        active = context.active_object
+        active = None
+        if(context.selected_objects):
+            if(context.active_object.is_area):
+                active = context.active_object
 
         
         if(active):
@@ -746,7 +744,6 @@ class AREAUtilities(bpy.types.Panel):
         area_settings = layout.column()
         
         if(active):
-            area_settings.prop(active,"is_area")
             area_settings.prop(active,"area_type")
             area_settings.prop(active,"area_pror")
             if(ac_area_type == 'A0'):
@@ -790,7 +787,7 @@ class AREAUtilities(bpy.types.Panel):
             area_create_column.enabled = True
         
 class CAMEUtilities(bpy.types.Panel):
-    bl_label = "Opening Cameras Utilities"
+    bl_label = "Opening Camera Utilities"
     bl_idname = "MKW_PT_KmpCame"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -802,15 +799,27 @@ class CAMEUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
+        active = context.active_object
         if(scene.frame_start != 0 or scene.render.fps != 60):
             layout.operator("came.setup")
         came_create_column = layout.column()
         came_create_column.operator("came.create")
         layout.operator("kmpt.came")
-        #layout.prop(mytool, "kmp_cameEnumType")
-        layout.prop(mytool, "kmp_cameCustomId")
-        layout.prop(mytool, "kmp_cameOpNext")
-        layout.prop(mytool, "kmp_cameRoute")
+        active = None
+
+        if(len(context.selected_objects)>0):
+            if(context.active_object.is_came):
+                active = context.active_object
+            elif(context.active_object.is_view_point):
+                active = context.active_object.link_to_came
+        if(active):
+            box = layout.box()
+            box.prop(mytool,"kmp_cameOffset")
+            box.prop(active,"is_main_came")
+            box.prop_search(active,"came_next",scene,"objects")
+            box.prop(active,"came_route")
+            box.prop(active,"came_frames")
+
         layout.prop(mytool, "kmp_cameGoToNext")
         layout.prop(mytool, "kmp_cameStop")
 
@@ -818,11 +827,10 @@ class CAMEUtilities(bpy.types.Panel):
             current_mode = bpy.context.object.mode
         else:
             current_mode = 'OBJECT'
-        
+        came_create_column.enabled = True
         if(current_mode != 'OBJECT'):
             came_create_column.enabled = False
-        else:
-            came_create_column.enabled = True
+            
 
 class RouteUtilities(bpy.types.Panel):
     bl_label = "Route Utilities"
@@ -1077,17 +1085,55 @@ class kmp_came(bpy.types.Operator):
         selected = bpy.context.selected_objects
         selected.sort(key=lambda obj: obj.name)
         decimal = locale.localeconv()["decimal_point"]
+        objectsToExport = []
         for object in selected:
-            if not object.name.startswith("CAME_"):
-                continue
+            if object.is_view_point:
+                object = object.link_to_came
+            if(object.is_main_came):
+                if object.is_came:
+                    if object in objectsToExport:
+                        continue
+                    objectsToExport.insert(0,object)
+                    obj = object.came_next
+                    while obj != None:
+                        if obj.is_view_point:
+                            obj = obj.link_to_came
+                        objectsToExport.append(obj)
+                        obj = obj.came_next
+                        if obj in objectsToExport:
+                            break
+                    break
+        for object in selected:
+            if object.is_view_point:
+                object = object.link_to_came  
+            if object in objectsToExport:
+                continue 
+            if object.is_came:
+                objectsToExport.append(object)
+                obj = object.came_next
+                while obj != None:
+                    if obj.is_view_point:
+                        obj = obj.link_to_came
+                    objectsToExport.append(obj)
+                    obj = obj.came_next
+                    if obj in objectsToExport:
+                        break
+            
+        id = 0
+        j = 0
+        skippedCames = 0
+        for object in objectsToExport:
             fovs = []
             vpposs = []
             fovkeyframes = []
             vpkeyframes = []
 
-            properties = object.name.split("_")
-            if(hasattr(object.data, "animation_data")):
-                if(hasattr(object.data.animation_data, "action")):
+            cameraName = object.data.name
+            fov = bpy.data.cameras[cameraName].angle
+            fov = fov * 180 / 3.1415
+            fov = round(fov * 9.0 / 16.0, 0)            
+            if hasattr(object.data, "animation_data"):
+                if hasattr(object.data.animation_data, "action"):
                     if(hasattr(object.data.animation_data.action, "fcurves")):
                         fovcurves = object.data.animation_data.action.fcurves
                         for curve in fovcurves:        
@@ -1109,33 +1155,23 @@ class kmp_came(bpy.types.Operator):
                             self.report({"WARNING"}, "Camera {0}: You can not have more than 2 FOV keyframes".format(properties[1]))
                             return {'CANCELLED'}
                     else:
-                        cameraName = object.data.name
-                        fov = bpy.data.cameras[cameraName].angle
-                        fov = fov * 180 / 3.1415
-                        fov = round(fov * 9.0 / 16.0, 0)
                         fovs.append(fov)
                         fovs.append(fov)
                         fovkeyframes.append(0)
                         fovkeyframes.append(0)
                 else:
-                    cameraName = object.data.name
-                    fov = bpy.data.cameras[cameraName].angle
-                    fov = fov * 180 / 3.1415
-                    fov = round(fov * 9 / 16, 0)
                     fovs.append(fov)
                     fovs.append(fov)
                     fovkeyframes.append(0)
                     fovkeyframes.append(0)
             else:
-                cameraName = object.data.name
-                fov = bpy.data.cameras[cameraName].angle
-                fov = fov * 180 / 3.1415
-                fov = round(fov * 9 / 16, 0)
                 fovs.append(fov)
                 fovs.append(fov)
                 fovkeyframes.append(0)
                 fovkeyframes.append(0)
-            viewpoint = bpy.context.scene.objects["CAMEVP_" + properties[1]]
+            viewpoint = object.link_to_vp
+            loc = viewpoint.location
+            position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
             if(hasattr(viewpoint, "animation_data")):
                 if(hasattr(viewpoint.animation_data, "action")):
                     if(hasattr(viewpoint.animation_data.action, "fcurves")):
@@ -1157,22 +1193,16 @@ class kmp_came(bpy.types.Operator):
                             self.report({"WARNING"}, "Camera {0}: You can not have more than 2 View Point keyframes".format(properties[1]))
                             return {'CANCELLED'}
                     else:
-                        loc = viewpoint.location
-                        position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                         vpposs.append(position)
                         vpposs.append(position)
                         vpkeyframes.append(0)
                         vpkeyframes.append(0)
                 else:
-                    loc = viewpoint.location
-                    position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                     vpposs.append(position)
                     vpposs.append(position)
                     vpkeyframes.append(0)
                     vpkeyframes.append(0)
             else:
-                loc = viewpoint.location
-                position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                 vpposs.append(position)
                 vpposs.append(position)
                 vpkeyframes.append(0)
@@ -1191,9 +1221,6 @@ class kmp_came(bpy.types.Operator):
                 fovSpeed = abs(fovs[1] - fovs[0])  * 100 / fovkeyframes[1] - fovkeyframes[0]
             fovSpeed = math.floor(fovSpeed)
             fovSpeed = "{0:0{1}X}".format(int(fovSpeed),4)
-            for i in range(len(properties)):
-                if(properties[i] == "-1"):
-                    properties[i] = "FF"
             xpos = round(object.location[0] * scale, 3)
             ypos = round(object.location[2] * scale, 3)
             zpos = round(object.location[1] * scale * -1, 3)
@@ -1203,9 +1230,45 @@ class kmp_came(bpy.types.Operator):
             vexpos = round(vpposs[1][0], 0)
             veypos = round(vpposs[1][2], 0)
             vezpos = round(vpposs[1][1] * -1, 0)
-            frames = properties[5]
-            dataValue = properties[1].zfill(2) + "\t" + properties[2].zfill(2) + "\t" + properties[3].zfill(2) + "\t00\t"+ properties[4].zfill(2) +"\t0000\t"+str(fovSpeed)+"\t"+str(vpSpeed)+"\t00\t00\t"+str(xpos)+"\t"+str(ypos)+"\t"+str(zpos)+"\t0\t0\t0\t"+str(int(fovs[0]))+"\t"+str(int(fovs[1]))+"\t"+str(vsxpos)+"\t"+str(vsypos)+"\t"+str(vszpos)+"\t"+str(vexpos)+"\t"+str(veypos)+"\t"+str(vezpos)+"\t"+str(frames)+"\n"
+            frames = object.came_frames
+            nextCameId = 'FF'
+            if(object.came_next != None):
+                nextCameId = id+1+mytool.kmp_cameOffset
+            id = id + 1            
+            nextRouteID = object.came_route
+
+
+            dataValues = [
+                str(j).zfill(2),
+                "05",
+                str(nextCameId).zfill(2),
+                "00",
+                str(nextRouteID).zfill(2),
+                "0000",
+                str(fovSpeed).zfill(4),
+                str(vpSpeed).zfill(4),
+                "00",
+                "00",
+                str(xpos),
+                str(ypos),
+                str(zpos),
+                "0",
+                "0",
+                "0",
+                str(int(fovs[0])),
+                str(int(fovs[1])),
+                str(vsxpos),
+                str(vsypos),
+                str(vszpos),
+                str(vexpos),
+                str(veypos),
+                str(vezpos),
+                str(object.came_frames)
+            ]
+            dataValue = ("\t").join(dataValues)+"\n"
             data += dataValue
+            j=j+1
+            
         if(decimal != "."):
             data.replace(".",decimal)
         bpy.context.window_manager.clipboard = data
@@ -1341,41 +1404,34 @@ class create_camera(bpy.types.Operator):
         camePosition = context.space_data.region_3d.view_location
         scale = mytool.scale
         cursor_position = context.scene.cursor.location
-        existingCames = 0
         bpy.ops.object.select_all(action='DESELECT')
-
-        for obj in bpy.data.objects:
-            if "came_" in obj.name.lower():
-                existingCames += 1
-        freeID = False
-
-        while freeID == False:
-            for obj in bpy.data.objects:
-                testName="came_"+str(existingCames)
-                if testName in obj.name.lower():
-                    existingCames+=1
-                    continue
-                else:
-                    freeID = True
-            freeID = True
 
         bpy.ops.mesh.primitive_uv_sphere_add(radius=scale/63.5,location=cursor_position)
         bpy.ops.object.mode_set(mode='OBJECT')
-        name="CAMEVP_"+str(existingCames)
-        mytool.kmp_cameCustomId = existingCames
+        vpName="New View Point"
         vp = bpy.context.object
-        bpy.context.object.name = name
+        vp.name = vpName
+        vp.is_view_point = True
+
+
         bpy.ops.object.camera_add(align='VIEW', location=camePosition)
         bpy.ops.transform.resize(value=(scale/10,scale/10,scale/10))
         bpy.ops.object.constraint_add(type='TRACK_TO')
         bpy.context.object.constraints["Track To"].up_axis = 'UP_Y'
         bpy.context.object.constraints["Track To"].track_axis = 'TRACK_NEGATIVE_Z'
         bpy.context.object.constraints["Track To"].target = vp
-        name="CAME_"+str(existingCames)+"_5_0_0_"
-        name+=str(scene.frame_end)
+        cameName="New Opening Camera"
+        came = bpy.context.object
         scene.camera = bpy.context.object
-        bpy.context.object.name = name
-        updateCame(self, context)
+        came.name = cameName
+        came.is_came = True
+        
+        objs = [ob for ob in bpy.context.scene.objects if ob.is_came]
+        if(len(objs)==1):
+            came.is_main_came = True
+        came.link_to_vp = vp
+        vp.link_to_came = came
+
 
           
         return {'FINISHED'}
@@ -1460,6 +1516,13 @@ class apply_kcl_flag(bpy.types.Operator):
     bl_label = "Apply Flag"
     bl_options = {'UNDO'}
     bl_description = "Apply current flag"
+    
+    @classmethod
+    def poll(cls,context):
+        b = True
+        if not context.selected_objects:
+            b = False
+        return b
     
     def execute(self, context):
         selection = []
@@ -1656,6 +1719,14 @@ class add_blight(bpy.types.Operator):
     bl_label = "Update BLIGHT"
     bl_options = {'UNDO'}
     bl_description = "Updates BLIGHT (Shadow) without changing other flag bits"
+
+    @classmethod
+    def poll(cls,context):
+        b = True
+        if not context.selected_objects:
+            b = False
+        return b
+
     def execute(self, context):
         selection = []
         oldSelection = []
@@ -2017,7 +2088,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         if (self.kclExportUnBeanCorner == "LOWER" or self.kclExportUnBeanCorner == "BOTH"):
-            wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree)+ ",") 
+           # wkclt += (" --kcl-script=\"" + directory + "\lower-walls.txt\" --const lower=" + str(self.kclExportLowerWallsBy) + ",degree=" + str(self.kclExportLowerDegree)+ ",") 
+            wkclt += r' --kcl-script="{0}\lower-walls.txt" --const lower={1},degree={2},'.format(directory,str(self.kclExportLowerWallsBy),str(self.kclExportLowerDegree))
         else:
             if(self.kclExportQuality == "CUSTOM"):
                 wkclt += " --const "
@@ -2078,7 +2150,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
         filedata = ""
         currentTime = time.time() #Get the current time, add to filepath
         objFilepath = filepath[:-4] + str(currentTime) + ".obj"
-        wkcltCommand = r'wkclt decode "' + filepath + r'" -o --dest "' + objFilepath + r'"'
+        wkcltCommand = r'wkclt decode "{0}" -o --dest "{1}"'.format(filepath,objFilepath)
         os.system(wkcltCommand)
 
         #Import OBJ to Blenduh
@@ -2359,10 +2431,10 @@ class kmp_area (bpy.types.Operator):
             elif(object.area_type == 'A3'):
                 areaSet1 = object.area_acc
                 areaSet2 = object.area_spd
-                areaRoute = '{0:0{1}X}'.format(int(properties[8]), 2)
+                areaRoute = '{0:0{1}X}'.format(int(object.area_route), 2)
             elif(object.area_type == 'A4'):
-                if(object.area_enemy != -1):
-                    areaEnemy = '{0:0{1}X}'.format(int(properties[9]), 2)
+                if(object.area_enpt != -1):
+                    areaEnemy = '{0:0{1}X}'.format(int(object.area_enpt), 2)
             elif(object.area_type == 'A6'):
                 areaSet1 = object.area_bblm
                 areaSet2 = object.area_bblm_trans
@@ -2426,22 +2498,45 @@ class kmp_area (bpy.types.Operator):
         bpy.context.window_manager.clipboard = data
         return {'FINISHED'}
 
-def create_collection(*args,name="MyCollection"):
+def create_collection(*args,name="MyCollection",parent=None):
     cols = [col for col in bpy.data.collections if col.name==name]
+    print("All cols:",bpy.data.collections[:])
+    parCol = None
     if not cols:
         myCol = bpy.data.collections.new(name)
-        bpy.context.scene.collection.children.link(myCol)
-    cols = bpy.context.scene.collection.children.get(name)
-    for arg in args:
-        if not hasattr(arg,"type"):
-            continue
-        if arg.type != 'MESH':
-            continue
-        for coll in arg.users_collection:
-            coll.objects.unlink(arg)
-        cols.objects.link(arg)
-    bpy.context.view_layer.objects.active = args[0]
-    
+        if(parent==None):
+            bpy.context.scene.collection.children.link(myCol)
+        else:
+            parCols = [col for col in bpy.data.collections if col.name==parent]
+            parCol = None
+            if not parCols:
+                parCol = bpy.data.collections.new(parent)
+                bpy.context.scene.collection.children.link(parCol)
+            else:
+                parCol = parCols[0]
+            parCol.children.link(myCol)
+            myCol = parCol.children.get(name)
+            print("myCol: ",myCol)
+    print(name,parent)
+    if(len(cols)!=1):
+        cols = bpy.context.scene.collection.children.get(name)
+        if(parent != None and parCol):
+            cols = parCol.children.get(name)
+            print(cols)
+        print("Col:",cols)
+    else:
+        cols = cols[0]
+    if args:
+        for arg in args:
+            if not hasattr(arg,"type"):
+                continue
+            if arg.type != 'MESH':
+                continue
+            for coll in arg.users_collection:
+                coll.objects.unlink(arg)
+            cols.objects.link(arg)
+        bpy.context.view_layer.objects.active = args[0]
+        
 
 
 
@@ -2466,6 +2561,7 @@ class kmp_c_cube_area (bpy.types.Operator):
         activeObject = bpy.context.active_object
         activeObject.name = "New Cubic Area"
         activeObject.is_area = True
+
         create_collection(activeObject,name="[AREA]")
         
         
@@ -2496,12 +2592,29 @@ class kmp_c_cylinder_area (bpy.types.Operator):
         return {'FINISHED'}
   
 loading = 0
+
+area_label_dict = {
+   0: "Camera",
+   1: "EnvEffect",
+   2: "BFG Entry Swapper",
+   3: "Moving Road",
+   4: "Destination Point",
+   5: "Minimap Control",
+   6: "BBLM Changer",
+   7: "Flying Boos",
+   8: "Object Grouper",
+   9: "Group Unloader",
+   10: "Fall Boundary",
+   11: "Conditional Out of Bounds" ,
+}
+
 class load_kmp_area(bpy.types.Operator, ImportHelper):
+    global area_label_dict
     bl_idname = "kmpc.load"
     bl_label = "Import KMP AREAs"       
     filename_ext = '.kmp'
     bl_description = "Loads KMP file and imports AREAs with settings"
-    
+    bl_options = {'UNDO'}  
     filter_glob: StringProperty(
         default='*.kmp',
         options={'HIDDEN'}
@@ -2582,9 +2695,39 @@ class load_kmp_area(bpy.types.Operator, ImportHelper):
                 string_areaType = 'A'+str(areaType)
                 activeObject.area_type = string_areaType
                 activeObject.area_pror = areaPriority
-                activeObject.name = "KMP AREA {0}: ".format(i)
-                create_collection(activeObject,name="[AREA]")
-
+               
+                areaTypeLabel = areaType
+                if(areaType == 0):
+                    activeObject.area_id = areaCAME
+                elif(areaType == 1):
+                    activeObject.area_kareha = areaSet1>0
+                elif(areaType == 2):
+                    activeObject.area_bfg = areaSet1
+                elif(areaType == 3):
+                    activeObject.area_route = areaRoute
+                    activeObject.area_acc = areaSet1
+                    activeObject.area_spd = areaSet2
+                elif(areaType == 4):
+                    activeObject.area_enpt = areaEnemy
+                elif(areaType == 6):
+                    activeObject.area_bblm = areaSet1
+                    activeObject.area_bblm_trans = areaSet2
+                elif(areaType in [8,9]):
+                    activeObject.area_group = areaSet1
+                elif(areaType == 10):
+                    if(areaSet1 != 0 or areaSet2 != 0):
+                        activeObject.area_coob_enabled = 1
+                        if(areaRoute == 1):
+                            activeObject.area_coob_version = "kHacker"
+                            activeObject.area_coob_kevin_mode = str(areaSet1)
+                            activeObject.area_coob_kevin_checkpoint = areaSet2
+                        else:
+                            activeObject.area_coob_version = "Riidefi"
+                            activeObject.coob_rii_p1 = areaSet1
+                            activeObject.coob_rii_p2 = areaSet2
+                    areaTypeLabel = 11
+                create_collection(activeObject,name="[{0}]".format(area_label_dict[areaTypeLabel]),parent="[AREA]")
+                activeObject.name = "KMP AREA {0}: {1}".format(i,area_label_dict[areaTypeLabel])
         
         loading = 0
         return {'FINISHED'}
@@ -2721,133 +2864,15 @@ def update_scene_handler(scene):
     global lastselection, setting1users, setting2users, oldFrameCount, casting
     mytool = scene.kmpt
     activeObject = bpy.context.active_object
-    #0 - AREA Header
-    #1 - Number
-    #2 - Shape
-    #3 - Type
-    #4 - CAME
-    #5 - Priority
-    #6 - Setting 1
-    #7 - Setting 2
-    #8 - Route
-    #9 - Enemy Point
-    scale = mytool.scale
-
-    if(loading == 0):
-        currentFrameCount = scene.frame_end
-
-        if(currentFrameCount != oldFrameCount):
-            for object in bpy.context.selected_objects:
-                updateCame(object,bpy.context)
-            oldFrameCount = currentFrameCount
-        for i in range(len(scene.objects)):
-            for object in scene.objects:
-                if(hasattr(object, "name")):
-                    if(object.name.startswith("AREA_")):
-                        if(object.name[-4] == "."):
-                            existingAreas = -1 * i - 1
-                            for obj in bpy.data.objects:
-                                if "area_" in obj.name.lower():
-                                    existingAreas = existingAreas + 1
-                            name = object.name[:-4]
-                            properties = name.split("_")
-                            object.name = "AREA_" + str(existingAreas) + "_" + properties[2] + "_" + properties[3] + "_" + properties[4] + "_" + properties[5] + "_" + properties[6] + "_" + properties[7] + "_" + properties[8] + "_" + properties[9]
-                    if(object.name.startswith("CAMEVP_")):
-                        if(object.name[-4] == "."):
-                            existingCames = -1 * i - 1
-                            for obj in bpy.data.objects:
-                                if "camevp_" in obj.name.lower():
-                                    existingCames = existingCames + 1
-                            name = object.name[:-5] + str(existingCames)
-                            object.name=name
-                    if(object.name.startswith("CAME_")):
-                        if(object.name[-4] == "."):
-                            existingCames = -1 * i - 1
-                            for obj in bpy.data.objects:
-                                if "came_" in obj.name.lower():
-                                    existingCames = existingCames + 1
-                            name = object.name[:-4]
-                            properties = name.split("_")
-                            object.name = "CAME_" + str(existingCames) + "_" + properties[2] + "_" + properties[3] + "_" + properties[4] + "_" + properties[5]
-                            newVP = "CAMEVP_" + str(existingCames)
-                            oldVPpos = bpy.context.scene.objects["CAMEVP_" + properties[1]].location
-                            if newVP not in scene.objects.keys():
-                                bpy.ops.mesh.primitive_uv_sphere_add(radius=scale/63.5,location=oldVPpos)
-                                name="CAMEVP_"+str(existingCames)
-                                bpy.context.object.name = name
-                                vp = bpy.context.scene.objects["CAMEVP_" + str(existingCames)]
-                                object.constraints["Track To"].target = vp
-                                object.select_set(True)
-                                vp.select_set(True)
-                            else:
-                                vp = bpy.context.scene.objects["CAMEVP_" + str(existingCames)]
-                                s=0
-                                if(vp.select_get()):
-                                    s=1
-                                object.constraints["Track To"].target = vp
-                                object.select_set(True)
-                                if(s==1):
-                                    vp.select_set(True)
-
-                   
-
-
-        if hasattr(activeObject, "name"):
-            if(activeObject.name.startswith("AREA_")):
-                if(lastselection != activeObject):
-                    name = activeObject.name
-                    properties = name.split("_")
-                    mytool.kmp_areaEnumType = "A" + properties[3]
-                    mytool.kmp_areaPrority = int(properties[5])
-                    mytool.kmp_areaSet1 = properties[6]
-                    mytool.kmp_areaSet2 = properties[7]
-                    mytool.kmp_areaEnemy = int(properties[9])
-                    #Clear settings which are not in selected AREA type
-                    mytool.kmp_areaID = int(float(properties[4]))
-                    mytool.kmp_areaRoute = int(properties[8])
-                    mytool.kmp_areaEnemy = int(float(properties[9]))
-                    mytool.kmp_areaSet1 = "0" if mytool.kmp_areaEnumType not in setting1users else properties[6]
-                    mytool.kmp_areaSet2 = "0" if mytool.kmp_areaEnumType not in setting2users else properties[7]
-                    mytool.kmp_areaPostEffectEntry = int(mytool.kmp_areaSet1)
-                    mytool.kmp_areaMovingRouteSet1 = int(mytool.kmp_areaSet1)
-                    mytool.kmp_areaMovingRouteSet2 = int(mytool.kmp_areaSet2)
-                    mytool.kmp_areaIDK1 = int(mytool.kmp_areaSet1)
-                    mytool.kmp_areaIDK2 = int(mytool.kmp_areaSet2)
-                    mytool.kmp_areaGroup = int(mytool.kmp_areaSet1)
-                    mytool.kmp_areaUseCOOB = False
-                    mytool.kmp_areaRiidefiP1 = 0
-                    mytool.kmp_areaRiidefiP2 = 0
-                    mytool.kmp_areaRiidefiInvert = False
-                    mytool.kmp_areakHackerMode = "0"
-                    mytool.kmp_areakHackerCheckpoint = 0
-                    if(mytool.kmp_areaEnumType == "A10"):
-                        if(mytool.kmp_areaRoute == "1" or mytool.kmp_areaSet1 != "0" or mytool.kmp_areaSet2 != "0"):
-                            mytool.kmp_areaUseCOOB = True
-                        mytool.kmp_areaCOOBVersion = "kHacker" if mytool.kmp_areaRoute == 1 else "Riidefi"
-                        if(mytool.kmp_areaCOOBVersion == "kHacker"):
-                            mytool.kmp_areakHackerMode = mytool.kmp_areaSet1
-                            mytool.kmp_areakHackerCheckpoint = int(mytool.kmp_areaSet2)
-                        mytool.kmp_areaRiidefiInvert = int(mytool.kmp_areaSet1) > int(mytool.kmp_areaSet2)
-                        if(mytool.kmp_areaRiidefiInvert):
-                            mytool.kmp_areaRiidefiP1 = int(mytool.kmp_areaSet2)
-                            mytool.kmp_areaRiidefiP2 = int(mytool.kmp_areaSet1)
-                        else:
-                            mytool.kmp_areaRiidefiP1 = int(mytool.kmp_areaSet1)
-                            mytool.kmp_areaRiidefiP2 = int(mytool.kmp_areaSet2)
-
-            if(activeObject.name.startswith("CAME_")):
-                if(lastselection != activeObject):
-                    name = activeObject.name
-                    properties = name.split("_")   
-                    mytool.kmp_cameEnumType = "B" + properties[2]
-                    mytool.kmp_cameCustomId = int(properties[1])
-                    mytool.kmp_cameOpNext = int(properties[3])
-                    mytool.kmp_cameRoute = int(properties[4])
-                    scene.frame_end = int(properties[5])
-            if(activeObject.name.startswith("CAME_")):
-                if(lastselection != activeObject):
-                    if(activeObject.type == 'CAMERA'):
-                        bpy.context.scene.camera = activeObject
+    obj = activeObject
+    if hasattr(obj, "is_came"):
+        if(obj.is_view_point):
+            obj = obj.link_to_came
+        if(obj.is_came):
+            if(lastselection != obj):
+                if(obj.type == 'CAMERA'):
+                    bpy.context.scene.camera = obj
+                    scene.frame_end = obj.came_frames
     lastselection = activeObject
 
 @persistent
@@ -3267,6 +3292,73 @@ def update_area_material(self,context):
     obj.data.materials.clear()
     obj.data.materials.append(mat) 
 
+def pool_came_objects(self,object):
+    return object.is_came
+
+shut_the_fuck_up_im_updating_you = False
+def mark_as_first_came(self,context):
+    global shut_the_fuck_up_im_updating_you
+    if(shut_the_fuck_up_im_updating_you):
+        return
+    shut_the_fuck_up_im_updating_you = True
+    if not context:
+        return
+    objs = [ob for ob in bpy.context.scene.objects if ob.is_came]
+    for ob in objs:
+        ob.is_main_came = False
+    active = context.active_object
+    if(context.active_object.is_view_point):
+        active = context.active_object.link_to_came
+    active.is_main_came = True
+    shut_the_fuck_up_im_updating_you = False
+
+def updateLastFrame(self,context):
+    active = context.active_object
+    scene = context.scene
+    scene.frame_end = active.came_frames
+
+def register_came():
+    bpy.types.Object.is_came = BoolProperty(
+        name="Is CAME?",
+        default=False
+
+    )
+    bpy.types.Object.is_view_point = BoolProperty(
+        name="Is View Point?",
+        default=False
+    )
+    bpy.types.Object.link_to_vp = PointerProperty(
+        name="Pointer To VP",
+        type=bpy.types.Object
+    )
+    bpy.types.Object.link_to_came = PointerProperty(
+        name="Pointer to CAME",
+        type=bpy.types.Object
+    )
+    bpy.types.Object.came_next = PointerProperty(
+        name="Next Camera",
+        type=bpy.types.Object,
+        poll=pool_came_objects
+    )
+    bpy.types.Object.came_route = IntProperty(
+        name="Custom Route ID",
+        default=0,
+        min=0,
+        max=255
+    )
+    bpy.types.Object.is_main_came = BoolProperty(
+        name="Use as First CAME",
+        default=False,
+        update=mark_as_first_came
+    )
+    bpy.types.Object.came_frames = IntProperty(
+        name="Duration (Frames)",
+        default=220,
+        min=0,
+        max=65535,
+        update=updateLastFrame
+    )
+
 def register_area():
     global areaTypes
 
@@ -3428,6 +3520,7 @@ def register():
     if directory.endswith("Blender-KMP-Utilities"):
         
         register_area()
+        register_came()
         for cls in classes:
             bpy.utils.register_class(cls)
         bpy.app.handlers.frame_change_post.append(frame_change_handler)
