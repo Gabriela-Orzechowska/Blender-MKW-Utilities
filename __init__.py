@@ -733,8 +733,9 @@ class AREAUtilities(bpy.types.Panel):
         area_create_column.operator("kmpc.c_cylinder_area")
         active = None
         if(context.selected_objects):
-            if(context.active_object.is_area):
-                active = context.active_object
+            if(context.active_object):
+                if(context.active_object.is_area):
+                    active = context.active_object
 
         
         if(active):
@@ -808,10 +809,11 @@ class CAMEUtilities(bpy.types.Panel):
         active = None
 
         if(len(context.selected_objects)>0):
-            if(context.active_object.is_came):
-                active = context.active_object
-            elif(context.active_object.is_view_point):
-                active = context.active_object.link_to_came
+            if(context.active_object):
+                if(context.active_object.is_came):
+                    active = context.active_object
+                elif(context.active_object.is_view_point):
+                    active = context.active_object.link_to_came
         if(active):
             box = layout.box()
             box.prop(mytool,"kmp_cameOffset")
@@ -1233,7 +1235,7 @@ class kmp_came(bpy.types.Operator):
             frames = object.came_frames
             nextCameId = 'FF'
             if(object.came_next != None):
-                nextCameId = id+1+mytool.kmp_cameOffset
+                nextCameId = objectsToExport.index(object.came_next) + mytool.kmp_cameOffset
             id = id + 1            
             nextRouteID = object.came_route
 
@@ -1263,7 +1265,7 @@ class kmp_came(bpy.types.Operator):
                 str(vexpos),
                 str(veypos),
                 str(vezpos),
-                str(object.came_frames)
+                str(frames)
             ]
             dataValue = ("\t").join(dataValues)+"\n"
             data += dataValue
@@ -1415,6 +1417,7 @@ class create_camera(bpy.types.Operator):
 
 
         bpy.ops.object.camera_add(align='VIEW', location=camePosition)
+        
         bpy.ops.transform.resize(value=(scale/10,scale/10,scale/10))
         bpy.ops.object.constraint_add(type='TRACK_TO')
         bpy.context.object.constraints["Track To"].up_axis = 'UP_Y'
@@ -1425,13 +1428,15 @@ class create_camera(bpy.types.Operator):
         scene.camera = bpy.context.object
         came.name = cameName
         came.is_came = True
-        
         objs = [ob for ob in bpy.context.scene.objects if ob.is_came]
         if(len(objs)==1):
             came.is_main_came = True
         came.link_to_vp = vp
         vp.link_to_came = came
+        cames = [ob for ob in bpy.context.scene.objects if ob.is_came]
 
+        create_collection(came,vp,name="[New Camera {0}]".format(len(cames)),parent="[CAME]")
+        
 
           
         return {'FINISHED'}
@@ -2530,7 +2535,7 @@ def create_collection(*args,name="MyCollection",parent=None):
         for arg in args:
             if not hasattr(arg,"type"):
                 continue
-            if arg.type != 'MESH':
+            if arg.type != 'MESH' and not 'CAMERA':
                 continue
             for coll in arg.users_collection:
                 coll.objects.unlink(arg)
@@ -2896,22 +2901,16 @@ def frame_change_handler(scene):
                 if(bpy.context.screen.is_scrubbing):
                     return
             if(mytool.kmp_cameGoToNext == True):
-                if(activeObject.type == 'CAMERA'):
-                    properties = activeObject.name.split("_")
-                    checkName = "CAME_"+str(properties[3])+"_"
-                    found = 0
-                    for ob in bpy.context.scene.objects:
-                        if(checkName in ob.name):
-                            bpy.ops.object.select_all(action='DESELECT')
-                            ob.select_set(True)
-                            bpy.context.view_layer.objects.active = ob
-                            obproperties = ob.name.split("_")
-                            scene.frame_end = int(obproperties[5])
-                            scene.frame_current = 0
-                            scene.camera = ob
-                            oldFrameCount= int(obproperties[5])
-                            found = 1
-                    if(found == 0):
+                if(activeObject.is_came):
+                    ob = activeObject.came_next
+                    if ob != None:
+                        if(ob.is_view_point):
+                            ob = ob.link_to_came
+                        scene.camera = ob
+                        scene.frame_current = 0
+                        scene.frame_end = ob.came_frames
+                        bpy.context.view_layer.objects.active = ob
+                    else:
                         if(mytool.kmp_cameStop):
                             bpy.ops.screen.animation_cancel(restore_frame=False)
             elif(mytool.kmp_cameStop):
