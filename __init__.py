@@ -1100,10 +1100,11 @@ class kmp_came(bpy.types.Operator):
                     while obj != None:
                         if obj.is_view_point:
                             obj = obj.link_to_came
-                        objectsToExport.append(obj)
-                        obj = obj.came_next
                         if obj in objectsToExport:
                             break
+                        objectsToExport.append(obj)
+                        obj = obj.came_next
+
                     break
         for object in selected:
             if object.is_view_point:
@@ -1116,10 +1117,11 @@ class kmp_came(bpy.types.Operator):
                 while obj != None:
                     if obj.is_view_point:
                         obj = obj.link_to_came
-                    objectsToExport.append(obj)
-                    obj = obj.came_next
                     if obj in objectsToExport:
                         break
+                    objectsToExport.append(obj)
+                    obj = obj.came_next
+                    
             
         id = 0
         j = 0
@@ -2496,7 +2498,6 @@ class kmp_area (bpy.types.Operator):
                 str(areaRoute) + str(areaEnemy),
                 '0000\n']
             dataValue = "\t".join(myData)
-            print(dataValue)
             data = data + dataValue
             x = x + 1
             
@@ -2505,7 +2506,6 @@ class kmp_area (bpy.types.Operator):
 
 def create_collection(*args,name="MyCollection",parent=None):
     cols = [col for col in bpy.data.collections if col.name==name]
-    print("All cols:",bpy.data.collections[:])
     parCol = None
     if not cols:
         myCol = bpy.data.collections.new(name)
@@ -2521,14 +2521,10 @@ def create_collection(*args,name="MyCollection",parent=None):
                 parCol = parCols[0]
             parCol.children.link(myCol)
             myCol = parCol.children.get(name)
-            print("myCol: ",myCol)
-    print(name,parent)
     if(len(cols)!=1):
         cols = bpy.context.scene.collection.children.get(name)
         if(parent != None and parCol):
             cols = parCol.children.get(name)
-            print(cols)
-        print("Col:",cols)
     else:
         cols = cols[0]
     if args:
