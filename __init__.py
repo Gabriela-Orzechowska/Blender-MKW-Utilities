@@ -1153,10 +1153,10 @@ class kmp_came(bpy.types.Operator):
                                     fov = round(fov * 9 / 16, 0)
                                     fovs.append(fov)
                         if(fovkeyframes[0] > 1):
-                            self.report({"WARNING"}, "Camera {0}: First FOV keyframe needs to be at frame 0".format(properties[1]))
+                            self.report({"WARNING"}, r'Camera "{0}": First FOV keyframe needs to be at frame 0'.format(object.name))
                             return {'CANCELLED'}
                         if(len(fovkeyframes) > 2):
-                            self.report({"WARNING"}, "Camera {0}: You can not have more than 2 FOV keyframes".format(properties[1]))
+                            self.report({"WARNING"}, r'Camera "{0}": You can not have more than 2 FOV keyframes'.format(object.name))
                             return {'CANCELLED'}
                     else:
                         fovs.append(fov)
@@ -1191,10 +1191,10 @@ class kmp_came(bpy.types.Operator):
                                     position = [loc[0] * scale,loc[1] * scale,loc[2] * scale]
                                     vpposs.append(position)
                         if(vpkeyframes[0] > 1):
-                            self.report({"WARNING"}, "Camera {0}: First View Point keyframe needs to be at frame 0".format(properties[1]))
+                            self.report({"WARNING"}, r'Camera "{0}": First View Point keyframe needs to be at frame 0'.format(object.name))
                             return {'CANCELLED'}
                         if(len(vpkeyframes) > 2):
-                            self.report({"WARNING"}, "Camera {0}: You can not have more than 2 View Point keyframes".format(properties[1]))
+                            self.report({"WARNING"}, r'Camera "{0}": You can not have more than 2 View Point keyframes'.format(object.name))
                             return {'CANCELLED'}
                     else:
                         vpposs.append(position)
@@ -1513,8 +1513,6 @@ def remove_all_duplicate_materials():
     
 
 
-
-#endregion
 finalFlag = ''
 properFlag = ''
 class apply_kcl_flag(bpy.types.Operator):
