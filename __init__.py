@@ -160,6 +160,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                             ],update=dummyKCLFunction)
     kcl_variant : IntProperty(name= "Variant", min=0, max=7, default= 0,update=dummyKCLFunction)
     kcl_shadow : IntProperty(name= "Shadow", min=0, max=7, default= 0,update=dummyKCLFunction,description="Controls BLIGHT index of KCL flag")
+    kcl_wheelDepth : IntProperty(name="Wheel Depth", default=0, min=0, max=2, description="Higher values (0, 1, 2 are possible) will inset drivers' wheels deeper into road. It likely has other subtle effects on wheel physics; exact details are unknown.")
     kcl_trickable : BoolProperty(name= "Trickable", default=False,update=dummyKCLFunction, description="Makes the road trickable")
     kcl_drivable : BoolProperty(name= "Reject road", default=False,update=dummyKCLFunction,description="Pushes player away from driving on the road")
     kcl_bounce : BoolProperty(name= "Soft Wall", default=False, description="Used to get rid of bean corners, use only on walls that meet road",update=dummyKCLFunction)
@@ -691,6 +692,7 @@ class KCLUtilities(bpy.types.Panel):
             layout.prop(mytool, t18variant)
         layout.prop(mytool, "kcl_shadow")
         if(mytool.kcl_masterType in kcl_typeATypes):
+            layout.prop(mytool, "kcl_wheelDepth")
             layout.prop(mytool, "kcl_trickable")
             layout.prop(mytool, "kcl_drivable")
         if(mytool.kcl_masterType == "T19"):
@@ -1690,7 +1692,8 @@ class apply_kcl_flag(bpy.types.Operator):
         y = '{:03b}'.format(int(y))
         if(mytool.kcl_masterType in kcl_typeATypes):
             w = "0" + str(int(mytool.kcl_drivable)) + str(int(mytool.kcl_trickable))
-            typeaflag = w+"00"+y
+            x = '{:02b}'.format(int(mytool.kcl_wheelDepth))
+            typeaflag = w+x+y
         if(mytool.kcl_masterType == "T1A"):
             typeaflag = y
 
