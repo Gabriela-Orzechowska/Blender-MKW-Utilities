@@ -159,9 +159,9 @@ class MyProperties(bpy.types.PropertyGroup):
                                                             ("T1F", "Wall 5 (0x1F)", ''),
                                                             ],update=dummyKCLFunction)
     kcl_variant : IntProperty(name= "Variant", min=0, max=7, default= 0,update=dummyKCLFunction)
-    kcl_shadow : IntProperty(name= "Shadow", min=0, max=7, default= 0,update=dummyKCLFunction)
-    kcl_trickable : BoolProperty(name= "Trickable", default=False,update=dummyKCLFunction)
-    kcl_drivable : BoolProperty(name= "Reject road", default=False,update=dummyKCLFunction)
+    kcl_shadow : IntProperty(name= "Shadow", min=0, max=7, default= 0,update=dummyKCLFunction,description="Controls BLIGHT index of KCL flag")
+    kcl_trickable : BoolProperty(name= "Trickable", default=False,update=dummyKCLFunction, description="Makes the road trickable")
+    kcl_drivable : BoolProperty(name= "Reject road", default=False,update=dummyKCLFunction,description="Pushes player away from driving on the road")
     kcl_bounce : BoolProperty(name= "Soft Wall", default=False, description="Used to get rid of bean corners, use only on walls that meet road",update=dummyKCLFunction)
     
     kclVariantT00 : EnumProperty(name = "Variant", items=[("0", "Normal", ''),
@@ -491,7 +491,6 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                     ("3", "Add to original", '')
                                                                     ],default="1",update=dummyKCLFunction)
     kcl_autoSeparate : BoolProperty(name = "Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.",update=dummyKCLFunction)
-    kcl_autoMerge : BoolProperty(name = "Auto-merge KCL objects", default=True, description="Automatically merge objects with same flags.",update=dummyKCLFunction)
 #endregion
 
 labelDict = {
@@ -546,7 +545,7 @@ current_version = "v0.1.10.1"
 latest_version = "v0.1.10.1"
 prerelease_version = "v0.1.10.1"
 
-kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D"]
+kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D","T0B"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
 
 class openGithub(bpy.types.Operator):
@@ -635,7 +634,7 @@ class KMPUtilities(bpy.types.Panel):
         #layout.operator("kmpe.load")
         if(current_mode == 'VERTEX_PAINT'):
             layout.operator("kmpt.getcolour")
-        #layout.operator("szs.export", icon="MOD_BUILD")
+        layout.operator("szs.export", icon="MOD_BUILD")
 class KCLSettings(bpy.types.Panel):
     bl_label = "KCL Settings"
     bl_idname = "MKW_PT_KclSet"
@@ -651,7 +650,6 @@ class KCLSettings(bpy.types.Panel):
         mytool = scene.kmpt
         layout.prop(mytool, "kcl_applyMaterial")
         layout.prop(mytool, "kcl_applyName")
-        layout.prop(mytool, "kcl_autoMerge")
         layout.prop(mytool, "kcl_autoSeparate")
 
 class KCLUtilities(bpy.types.Panel):
@@ -691,8 +689,7 @@ class KCLUtilities(bpy.types.Panel):
             layout.prop(mytool, "kclVariantT18Circuits")
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             layout.prop(mytool, t18variant)
-        if(mytool.kcl_masterType in kcl_typeATypes or mytool.kcl_masterType == "T1A" or mytool.kcl_masterType in kcl_wallTypes):
-            layout.prop(mytool, "kcl_shadow")
+        layout.prop(mytool, "kcl_shadow")
         if(mytool.kcl_masterType in kcl_typeATypes):
             layout.prop(mytool, "kcl_trickable")
             layout.prop(mytool, "kcl_drivable")
@@ -874,6 +871,41 @@ class MaterialUtilities(bpy.types.Panel):
         layout.operator("kmpt.metalic")
         layout.operator("kmpt.specular")
 
+
+class ShaderUtilities(bpy.types.Panel):
+    bl_label = "Shader Utilities"
+    bl_idname = "MKW_PT_Shader"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='MATERIAL')
+    def draw(self,context):
+        layout = self.layout
+        layout.operator("kmpt.vercolor")
+        layout.operator("kmpt.blend")
+        layout.operator("kmpt.hashed")
+        layout.operator("kmpt.clip")
+        layout.operator("kmpt.metalic")
+        layout.operator("kmpt.specular")
+
+class ShaderGroupUtilities(bpy.types.Panel):
+    bl_label = "Shader Node Groups Utilities"
+    bl_idname = "MKW_PT_ShaderGroup"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "MKW Utils"
+    def draw_header(self, _):
+        layout = self.layout
+        layout.label(text="", icon='NODETREE')
+    def draw(self,context):
+        layout = self.layout
+        layout.operator("mat.addmirror")
+        layout.operator("mat.addmirroru")
+        layout.operator("mat.addmirrorv")
+
 class get_vertex_color(bpy.types.Operator):
     bl_idname = "kmpt.getcolour"
     bl_label = "Get Vertex Color"
@@ -1026,7 +1058,7 @@ class add_vertex_col(bpy.types.Operator):
             if obj.type == 'MESH' and not obj.active_material == None:
                 if(BLENDER_33):
                     if not obj.data.color_attributes:
-                        obj.data.color_attributes.new(name="Vertex Colors",type='BYTE_COLOR',domain='POINT')
+                        obj.data.color_attributes.new(name="Vertex Colors",type='BYTE_COLOR',domain='CORNER')
                 else:
                     if not obj.data.vertex_colors:
                         obj.data.vertex_colors.new(name="Vertex Colors")
@@ -1072,6 +1104,88 @@ class add_vertex_col(bpy.types.Operator):
                                         
         return {'FINISHED'}
                                 
+
+class add_mirrorUV(bpy.types.Operator):
+    bl_idname = "mat.addmirror"
+    bl_label = "Add Mirror UV Node"
+    bl_options = {'UNDO'}
+    def execute(self, context): 
+        my_group = create_mirror_group()
+        test_node = bpy.context.active_object.active_material.node_tree.nodes.new('ShaderNodeGroup')
+        test_node.node_tree = bpy.data.node_groups[my_group.name]
+        test_node.location = (-500,0)
+        return {'FINISHED'}
+
+class add_mirrorU(bpy.types.Operator):
+    bl_idname = "mat.addmirroru"
+    bl_label = "Add Mirror U Node"
+    bl_options = {'UNDO'}
+    def execute(self, context): 
+        my_group = create_mirror_group(key="u",name="Mirror U")
+        test_node = bpy.context.active_object.active_material.node_tree.nodes.new('ShaderNodeGroup')
+        test_node.node_tree = bpy.data.node_groups[my_group.name]
+        test_node.location = (-500,0)
+        return {'FINISHED'}
+
+class add_mirrorV(bpy.types.Operator):
+    bl_idname = "mat.addmirrorv"
+    bl_label = "Add Mirror V Node"
+    bl_options = {'UNDO'}
+    def execute(self, context): 
+        my_group = create_mirror_group(key="v",name="Mirror V")
+        test_node = bpy.context.active_object.active_material.node_tree.nodes.new('ShaderNodeGroup')
+        test_node.node_tree = bpy.data.node_groups[my_group.name]
+        test_node.location = (-500,0)
+        return {'FINISHED'}
+
+
+def create_mirror_group(key="uv",name='Mirror UV'):
+    if(name in bpy.data.node_groups):
+        return bpy.data.node_groups[name]
+
+    mirror_group = bpy.data.node_groups.new(name, 'ShaderNodeTree')
+    mirror_group.name = name
+    group_outputs = mirror_group.nodes.new('NodeGroupOutput')
+    mirror_group.outputs.new('NodeSocketVector','Vector')
+    group_outputs.location = (300,0)
+
+    uvMap = mirror_group.nodes.new("ShaderNodeUVMap")
+    uvMap.location = (-500,0)
+
+    seperateNode = mirror_group.nodes.new("ShaderNodeSeparateXYZ")
+    seperateNode.location = (-300,0)
+
+    combineNode = mirror_group.nodes.new("ShaderNodeCombineXYZ")
+    combineNode.location = (200,0)
+
+    flipX = mirror_group.nodes.new("ShaderNodeMath")
+    flipX.location = (-150,100)
+    flipX.inputs[1].default_value = 1
+    flipX.operation = 'PINGPONG'
+
+    flipY = mirror_group.nodes.new("ShaderNodeMath")
+    flipY.location = (-150,-100)
+    flipY.inputs[1].default_value = 1
+    flipY.operation = 'PINGPONG'
+
+    links = mirror_group.links
+    links.new(seperateNode.inputs['Vector'], uvMap.outputs['UV'])
+    links.new(flipX.inputs['Value'],seperateNode.outputs['X'])
+    links.new(flipY.inputs['Value'],seperateNode.outputs['Y'])
+
+    links.new(combineNode.inputs['Z'],seperateNode.outputs['Z'])
+    if("u" in key):
+        links.new(combineNode.inputs['X'],flipX.outputs['Value'])
+    else:
+        links.new(combineNode.inputs['X'],seperateNode.outputs['X'])
+    if("v" in key):
+        links.new(combineNode.inputs['Y'],flipY.outputs['Value'])
+    else:
+        links.new(combineNode.inputs['Y'],seperateNode.outputs['Y'])
+
+    links.new(group_outputs.inputs['Vector'],combineNode.outputs['Vector'])
+
+    return mirror_group
 
 
 class kmp_came(bpy.types.Operator):
@@ -1573,14 +1687,12 @@ class apply_kcl_flag(bpy.types.Operator):
             z = getattr(mytool,t18variant)
             z = '{:03b}'.format(int(z))
         typeaflag = ''
+        y = mytool.kcl_shadow
+        y = '{:03b}'.format(int(y))
         if(mytool.kcl_masterType in kcl_typeATypes):
-            y = mytool.kcl_shadow
-            y = '{:03b}'.format(int(y))
             w = "0" + str(int(mytool.kcl_drivable)) + str(int(mytool.kcl_trickable))
             typeaflag = w+"00"+y
         if(mytool.kcl_masterType == "T1A"):
-            y = mytool.kcl_shadow
-            y = '{:03b}'.format(int(y))
             typeaflag = y
 
         a = '{:01b}'.format(int(mytool.kcl_masterType[1],16))
@@ -1593,8 +1705,6 @@ class apply_kcl_flag(bpy.types.Operator):
             flag = '{:08b}'.format(18)
         if(mytool.kcl_masterType in kcl_wallTypes):
             w = int(mytool.kcl_bounce == True)
-            y = mytool.kcl_shadow
-            y = '{:03b}'.format(int(y))
             flag = str(w)+"0000"+y+z+a+b
 
         finalFlag = '{:04x}'.format(int(flag,2))
@@ -1674,21 +1784,9 @@ class apply_kcl_flag(bpy.types.Operator):
             else:
                 bpy.context.view_layer.objects.active = selection[0]
             bpy.ops.object.mode_set(mode='EDIT')
-        if(mytool.kcl_applyMaterial == "1"):
-            if(mytool.kcl_autoMerge):
-                bpy.ops.object.mode_set(mode='OBJECT')
-                aselection=context.selected_objects
-                merge_duplicate_flags(context)
-                for obj in aselection:
-                    try:
-                        obj.select_set(True)
-                    except ReferenceError:
-                        pass
-                if(wasInEditMode):
-                    bpy.ops.object.mode_set(mode='EDIT')
+        if(mytool.kcl_applyMaterial == '1'):
+            return {"FINISHED"}
 
-            return {'FINISHED'}
-        
         mat = bpy.data.materials.get(flagOnly)
         if mat is None:
             mat = bpy.data.materials.new(name=flagOnly)
@@ -1705,18 +1803,6 @@ class apply_kcl_flag(bpy.types.Operator):
         else:
             context.active_object.data.materials.clear()
             context.active_object.data.materials.append(mat)
-        if(mytool.kcl_autoMerge):
-            bpy.ops.object.mode_set(mode='OBJECT')
-            aselection=context.selected_objects
-            merge_duplicate_flags(context)
-            for obj in aselection:
-                try:
-                    obj.select_set(True)
-                except ReferenceError:
-                    pass
-            if(wasInEditMode):
-                bpy.ops.object.mode_set(mode='EDIT')
-
         return {'FINISHED'}
 
 class add_blight(bpy.types.Operator):
@@ -1785,7 +1871,7 @@ class add_blight(bpy.types.Operator):
             bits = bin(int(bits, 16))[2:].zfill(16)
             bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3)+bits[8:]
             newFlag = hex(int(bits,2))[2:].zfill(4)
-            i.name = i.name[:-4] + newFlag
+            i.name = i.name[:-4] + newFlag.upper()
             i.data.name = i.name
 
 
@@ -1807,18 +1893,6 @@ class add_blight(bpy.types.Operator):
                 bpy.context.view_layer.objects.active = selection[0]
             bpy.ops.object.mode_set(mode='EDIT')
         if(mytool.kcl_applyMaterial == "1"):
-            if(mytool.kcl_autoMerge):
-                bpy.ops.object.mode_set(mode='OBJECT')
-                aselection=context.selected_objects
-                merge_duplicate_flags(context)
-                for obj in aselection:
-                    try:
-                        obj.select_set(True)
-                    except ReferenceError:
-                        pass
-                if(wasInEditMode):
-                    bpy.ops.object.mode_set(mode='EDIT')
-
             return {'FINISHED'}
         if(wasInEditMode):
             for i in separated:
@@ -1851,17 +1925,6 @@ class add_blight(bpy.types.Operator):
                     mat.diffuse_color = (color[0],color[1],color[2],1)
             context.active_object.data.materials.clear()
             context.active_object.data.materials.append(mat)
-        if(mytool.kcl_autoMerge):
-            bpy.ops.object.mode_set(mode='OBJECT')
-            aselection=context.selected_objects
-            merge_duplicate_flags(context)
-            for obj in aselection:
-                try:
-                    obj.select_set(True)
-                except ReferenceError:
-                    pass
-            if(wasInEditMode):
-                bpy.ops.object.mode_set(mode='EDIT')
         return {'FINISHED'}
         
 def decodeFlag(bareFlag):
@@ -2052,7 +2115,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         if(self.kclExportSelection or self.kclExportFlagOnly):
             selectionBool = True
 
-        bpy.ops.export_scene.objkcl(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale)
+        bpy.ops.export_scene.objkcl(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale,use_mesh_modifiers=True)
         
         wkclt = "wkclt encode \"" + filepath + "\""
         if(self.kclEncodeScale[:] != (1.0,1.0,1.0)):
@@ -2226,7 +2289,7 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         filepath = self.filepath
         os.system("del \"" + filepath[:-4]+"-pomidor.dae\"")
-        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH','ARMATURE'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode)
+        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH','ARMATURE'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode, bake_anim=False)
         script_file = os.path.normpath(__file__)
         directory = os.path.dirname(script_file)
         converterDir = "\"" + directory + "\\bin\\FbxConverter.exe" + "\""
@@ -2883,6 +2946,7 @@ def load_file_handler(dummy):
     responseVersions = requests.get(prerelease)
     prerelease_version = responseVersions.json()["tag_name"]
     latest_version = responseLatest.json()["tag_name"]
+    create_node_groups()
 
 @persistent
 def frame_change_handler(scene):
@@ -3496,10 +3560,14 @@ def define_area_mats():
             mat = bpy.data.materials.new(matName)
             mat.diffuse_color = matColors[i]
             mat.blend_method = 'BLEND' 
-    
 
 
-classes = [get_vertex_color, add_vertex_col,PreferenceProperty, MyProperties, restore_specular_metalic, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+def create_node_groups():
+    create_mirror_group()
+    create_mirror_group(key="u",name="Mirror U")
+    create_mirror_group(key="v",name="Mirror V")
+
+classes = [get_vertex_color, add_vertex_col,PreferenceProperty,add_mirrorUV,add_mirrorU,add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
 addon_keymaps = []
