@@ -541,9 +541,9 @@ areaTypes = [("A0", "Camera", 'Defines which camera is being used while entering
             ("A8", "Object Grouper", 'Groups objects together'),
             ("A9", "Group Unloader", 'Disables objects of selected group'),
             ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')]
-current_version = "v0.1.10.1"
-latest_version = "v0.1.10.1"
-prerelease_version = "v0.1.10.1"
+current_version = "v0.1.12"
+latest_version = "v0.1.12"
+prerelease_version = "v0.1.12"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D","T0B"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
