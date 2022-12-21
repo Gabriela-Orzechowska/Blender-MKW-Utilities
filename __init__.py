@@ -238,12 +238,15 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("5", "Grass", ''),
                                                                 ("6", "Wood", ''),
                                                                 ("7", "Dark sand with GFX", '')],update=dummyKCLFunction)
-    kclVariantT0B : EnumProperty(name = "Variant", items=[("0", "Moving water that follows a route, pulling the player downwards.", 'Route settings:\n1 = speed\n2 = unknown'),
-                                                                ("1", "Moving water that follows a route and strongly pulls the player downwards, making it hard to drive.", 'Route settings:\n1 = speed\n2 = unknown'),
-                                                                ("2", "Moving water that follows a route from the start of the path to the end of it.", 'Route settings:\n1 = unknown\n2 = with value 1, the moving water direction rotates 90 degrees.\nIt also uses two settings in the AREA:\nAt 0x28 = acceleration/deceleration modifier\nAt 0x2A = route speed (speed at which the route pulls the player)\n (Supported by AREA plugin)'),
-                                                                ("3", "Moving water with no route.", 'It pulls you down and you cannot move from it'),
-                                                                ("4", "Moving asphalt", 'Route settings:\n1 = speed\n2 = unknown'),
-                                                                ("6", "Moving road", 'Route settings:\n1 = speed\n2 = unknown')],update=dummyKCLFunction)
+    kclVariantT0B : EnumProperty(name = "Variant", items=[("0", "Moving water that follows a route, pulling the player downwards.",''),
+                                                                ("1", "Moving water that follows a route and strongly pulls the player downwards, making it hard to drive.",''),
+                                                                ("2", "Moving water that follows a route from the start of the path to the end of it.",''),
+                                                                ("3", "Moving water that follows a route from the start of the path to the end of it and disables player's acceleration", 'Uses 2 AREA settings:\nSetting 1: Current player\'s speed modifier.\neg. value of 100 will keep current player\'s speed. Values below 100 will slow down player until full stop.\nSetting 2: Moving speed.'),
+                                                                ("4", "Moving asphalt",''),
+                                                                ("5", "Moving asphalt (2)",''),
+                                                                ("6", "Moving road",''),
+                                                                ("7", "Moving road (2)",'')],
+                                                                update=dummyKCLFunction)
     kclVariantT0C : EnumProperty(name = "Variant", items=[("0", "Normal", ''),
                                                                 ("1", "Rock", ''),
                                                                 ("2", "Metal", ''),
