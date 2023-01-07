@@ -42,6 +42,9 @@ from bpy_extras.io_utils import (
 from bpy.app.handlers import persistent
 from . import export_obj
 
+from nodeitems_utils import NodeItem, register_node_categories, unregister_node_categories
+from nodeitems_builtins import ShaderNodeCategory
+
 BLENDER_30 = bpy.app.version[0] >= 3
 BLENDER_33 = bpy.app.version[0] >= 3 and bpy.app.version[1] >= 3
 lastselection = []
@@ -124,7 +127,8 @@ class MyProperties(bpy.types.PropertyGroup):
     #
     #
     
-    
+    kcl_showFlag : BoolProperty(name="Current object flag", default=False)
+
     kcl_masterType : EnumProperty(name = "Type", items=[("T00", "Road (0x00)", ''),
                                                             ("T01", "Slippery Road 1 (0x01)", ''),
                                                             ("T02", "Weak Off-road (0x02)", ''),
@@ -280,7 +284,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                 ("5", "Burning air fall", ''),
                                                                 ("6", "Quicksand", ''),
                                                                 ("7", "Short fall", '')],update=dummyKCLFunction)
-    kclVariant10Index : IntProperty(name = "KMP Index", default = 0, min = 0, max = 255,update=dummyKCLFunction) 
+    kclVariant10Index : IntProperty(name = "KMP Index", default = 0, min = 0, max = 7,update=dummyKCLFunction) 
     kclVariantT11 : EnumProperty(name = "Variant", items=[("0", "To point 0", ''),
                                                                 ("1", "To point 1", ''),
                                                                 ("2", "To point 2", ''),
@@ -495,6 +499,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                                     ("3", "Add to original", '')
                                                                     ],default="1",update=dummyKCLFunction)
     kcl_autoSeparate : BoolProperty(name = "Auto-separate in Edit Mode", default=True, description="Automatically separate selection when applying flags in edit mode.",update=dummyKCLFunction)
+    util_addVCs : BoolProperty(name="Auto-add Vertex Colours Data", default=True)
 #endregion
 
 labelDict = {
@@ -545,9 +550,9 @@ areaTypes = [("A0", "Camera", 'Defines which camera is being used while entering
             ("A8", "Object Grouper", 'Groups objects together'),
             ("A9", "Group Unloader", 'Disables objects of selected group'),
             ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')]
-current_version = "v0.1.12.1"
-latest_version = "v0.1.12.1"
-prerelease_version = "v0.1.12.1"
+current_version = "v0.1.13"
+latest_version = "v0.1.13"
+prerelease_version = "v0.1.13"
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D","T0B"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -656,25 +661,62 @@ class KCLSettings(bpy.types.Panel):
         layout.prop(mytool, "kcl_applyName")
         layout.prop(mytool, "kcl_autoSeparate")
 
+
 class KCLUtilities(bpy.types.Panel):
-    global finalFlag
-    global kcl_typeATypes
-    global wszstInstalled
+    global finalFlag, kcl_typeATypes, wszstInstalled
     bl_label = "KCL Utilities"
     bl_idname = "MKW_PT_Kcl"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "MKW Utils"
+
     def draw_header(self, _):
         layout = self.layout
         layout.label(text="", icon='FACESEL')
     def draw(self, context):
+        
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt   
         text="Please download Wiimms SZS Tools (WSZST) to Import/Export KCL."
-        
-        
+        variantPropName = "kclVariant" + mytool.kcl_masterType
+        box = layout.box()
+        column = box.column()
+        column.prop(mytool,"kcl_showFlag",
+            icon="TRIA_DOWN" if mytool.kcl_showFlag else "TRIA_RIGHT", emboss=False
+        )
+        if(mytool.kcl_showFlag):
+            activeObject = context.active_object
+            if not (activeObject in context.selected_objects):
+                column.label(text="No object selected")
+            else:
+                name = activeObject.name
+                if(checkFlagInName001(name)):
+                    if(name[-3:].isnumeric() and name[-4] == "."):
+                        name = name[:-4]
+                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_depth = decodeFlag(name[-4:])
+                    column.label(text="Flag: 0x{0}".format(name[-4:]))
+                    column.label(text="Type: {0}".format(mytool.bl_rna.properties['kcl_masterType'].enum_items[_kclType].name))
+                    variantName = "kclVariant" + _kclType
+                    variant = 0
+                    try:
+                        variant = mytool.bl_rna.properties[variantName].enum_items[_variant].name
+                    except KeyError:
+                        pass
+                    if(variant != 0):
+                        column.label(text="Variant: {0}".format(variant))
+                    if(_kclType in kcl_typeATypes):
+                        column.label(text="Shadow: {0}, Wheel Depth: {1}".format(_shadow,_depth))
+                        column.label(text="Trickable: {0}, Reject: {1}".format("Yes" if _trickable else "No","No" if _drivable else "Yes"))
+                    elif(_kclType in kcl_wallTypes):
+                        column.label(text="Shadow: {0}, Soft Wall: {1}".format(_shadow,_softWall))
+                    elif(_kclType == "T10"):
+                        column.label(text="KMP Index: {0}".format(_shadow))
+                    column.operator("kcl.getback")
+                else:
+                    column.label(text="No KCL flag found.")
+                
+            
         if(wszstInstalled):
             layout.operator("kcl.load")
         else:
@@ -684,20 +726,30 @@ class KCLUtilities(bpy.types.Panel):
                 parent=layout
             )
             layout.operator("open.wszst")
+        
         layout.prop(mytool, "kcl_masterType")
-        variantPropName = "kclVariant" + mytool.kcl_masterType
         layout.prop(mytool, variantPropName)
-        if(mytool.kcl_masterType == "T10"):
-            layout.prop(mytool, "kclVariant10Index")
         if(mytool.kcl_masterType == "T18"):
             layout.prop(mytool, "kclVariantT18Circuits")
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             layout.prop(mytool, t18variant)
-        layout.prop(mytool, "kcl_shadow")
+        
         if(mytool.kcl_masterType in kcl_typeATypes):
             layout.prop(mytool, "kcl_wheelDepth")
-            layout.prop(mytool, "kcl_trickable")
-            layout.prop(mytool, "kcl_drivable")
+            
+        if(mytool.kcl_masterType == "T10"):
+            layout.prop(mytool, "kclVariant10Index")
+        else:
+            row1 = layout.row()
+            row1.prop(mytool, "kcl_shadow")
+            #row1.operator("kcl.addblight")
+        if(mytool.kcl_masterType in kcl_typeATypes):
+            row1 = layout.row()
+            row1.prop(mytool, "kcl_trickable")
+            #row1.operator("kcl.updatetrickable")
+            row2 = layout.row()
+            row2.prop(mytool, "kcl_drivable")
+            #row2.operator("kcl.updatereject")
         if(mytool.kcl_masterType == "T19"):
             text='This flag is mainly used with "Soft Walls"'
             _label_multiline(
@@ -707,9 +759,10 @@ class KCLUtilities(bpy.types.Panel):
             )
         if(mytool.kcl_masterType in kcl_wallTypes):
             layout.prop(mytool, "kcl_bounce") 
-        
-        layout.operator("kcl.applyflag")
+            
         layout.operator("kcl.addblight")
+        layout.operator("kcl.applyflag")
+        
         if(wszstInstalled):
             layout.operator("kcl.export")
         
@@ -867,6 +920,7 @@ class MaterialUtilities(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
+        layout.prop(mytool, "util_addVCs")
         layout.operator("mkw.matdel")
         layout.operator("kmpt.vercolor")
         layout.operator("kmpt.blend")
@@ -1190,6 +1244,129 @@ def create_mirror_group(key="uv",name='Mirror UV'):
     links.new(group_outputs.inputs['Vector'],combineNode.outputs['Vector'])
 
     return mirror_group
+
+        
+class ShaderTEVGroup(bpy.types.ShaderNodeCustomGroup):
+    bl_name = 'ShaderTEVGroup'
+    bl_label = 'Wii TEV Stage'
+
+    def _updateVal(self, context):
+        bias = float(self.BiasEnum)
+        scale = float(self.Scale)
+        op = int(self.Operation)
+        if bias < 0:
+            self.node_tree.nodes['Mix.006'].blend_type = 'SUBTRACT'
+            bias = bias * -1
+        else:
+            self.node_tree.nodes['Mix.006'].blend_type = 'ADD'
+        self.node_tree.nodes['Mix.006'].inputs[7].default_value = (bias,bias,bias,1)
+        self.node_tree.nodes['Mix.007'].inputs[7].default_value = (scale,scale,scale,1)
+
+        self.node_tree.nodes['Mix.004'].inputs[0].default_value = (op - 1) * -1
+        self.node_tree.nodes['Mix.005'].inputs[0].default_value = op
+
+        
+
+    BiasEnum : bpy.props.EnumProperty(name="Bias", items={('-0.5','-0.5',''),('0.0','0.0',''),('+0.5','+0.5','')}, default='0.0', update=_updateVal)
+    Operation : bpy.props.EnumProperty(name="Operation", items={('1','Add',''),('0','Subtract',''),}, default='1', update=_updateVal)
+    Scale : bpy.props.EnumProperty(name="Bias", items={('0.5','0.5',''),('1','1',''),('2','2',''),('4','4','')}, default='1', update=_updateVal)
+
+    def init(self, context):
+        self.node_tree=bpy.data.node_groups.new("." + self.bl_name, 'ShaderNodeTree')
+        group_inputs = self.node_tree.nodes.new('NodeGroupInput')
+        group_output = self.node_tree.nodes.new('NodeGroupOutput')
+        group_inputs.location = (-700,0)
+        self.node_tree.inputs.new('NodeSocketColor','A')
+        self.node_tree.inputs.new('NodeSocketColor','B')
+        self.node_tree.inputs.new('NodeSocketColor','C')
+        self.node_tree.inputs.new('NodeSocketColor','D')
+        group_output.location = (1000,0)
+        self.node_tree.outputs.new('NodeSocketColor',"Color")
+
+        oneMinusNode = self.node_tree.nodes.new("ShaderNodeMix")
+        oneMinusNode.location = (-500,200)
+        oneMinusNode.data_type = 'RGBA'
+        oneMinusNode.blend_type = 'SUBTRACT'
+        oneMinusNode.inputs[0].default_value = 1
+        oneMinusNode.inputs[6].default_value = [1,1,1,1]
+
+        
+        CtimesB = self.node_tree.nodes.new("ShaderNodeMix")
+        CtimesB.location = (-500,-100)
+        CtimesB.data_type = 'RGBA'
+        CtimesB.blend_type = 'MULTIPLY'
+        CtimesB.inputs[0].default_value = 1
+
+        timesA = self.node_tree.nodes.new("ShaderNodeMix")
+        timesA.location = (-300,200)
+        timesA.data_type = 'RGBA'
+        timesA.blend_type = 'MULTIPLY'
+        timesA.inputs[0].default_value = 1
+
+        addCB = self.node_tree.nodes.new("ShaderNodeMix")
+        addCB.location = (-100,0)
+        addCB.data_type = 'RGBA'
+        addCB.blend_type = 'ADD'
+        addCB.inputs[0].default_value = 1
+
+        Dminus = self.node_tree.nodes.new("ShaderNodeMix")
+        Dminus.location = (100,50)
+        Dminus.data_type = 'RGBA'
+        Dminus.blend_type = 'SUBTRACT'
+        Dminus.inputs[0].default_value = 0
+
+        Dplus = self.node_tree.nodes.new("ShaderNodeMix")
+        Dplus.location = (300,50)
+        Dplus.data_type = 'RGBA'
+        Dplus.blend_type = 'ADD'
+        Dplus.inputs[0].default_value = 1
+        
+        biasNode = self.node_tree.nodes.new("ShaderNodeMix")
+        biasNode.location = (500,0)
+        biasNode.data_type = 'RGBA'
+        biasNode.blend_type = 'ADD'
+        biasNode.inputs[0].default_value = 1
+        biasNode.inputs[7].default_value = [0,0,0,1]
+
+        scaleNode = self.node_tree.nodes.new("ShaderNodeMix")
+        scaleNode.location = (700,0)
+        scaleNode.data_type = 'RGBA'
+        scaleNode.blend_type = 'MULTIPLY'
+        scaleNode.inputs[0].default_value = 1
+        scaleNode.inputs[7].default_value = [1,1,1,1]
+
+        link = self.node_tree.links.new
+        link(oneMinusNode.inputs[7], group_inputs.outputs['C'])
+        link(CtimesB.inputs[7], group_inputs.outputs['C'])
+        link(CtimesB.inputs[6], group_inputs.outputs['B'])
+        link(timesA.inputs[7], oneMinusNode.outputs[2])
+        link(timesA.inputs[6], group_inputs.outputs['A'])
+        link(addCB.inputs[7],CtimesB.outputs[2])
+        link(addCB.inputs[6],timesA.outputs[2])
+
+        link(Dminus.inputs[7],group_inputs.outputs['D'])
+        link(Dplus.inputs[7],group_inputs.outputs['D'])
+
+        link(Dminus.inputs[6],addCB.outputs[2])
+        link(Dplus.inputs[6],Dminus.outputs[2])
+
+        link(biasNode.inputs[6],Dplus.outputs[2])
+        link(scaleNode.inputs[6],biasNode.outputs[2])
+        link(group_output.inputs[0],scaleNode.outputs[2])
+
+
+
+    def draw_buttons(self, context, layout):
+        column=layout.column()
+        column.prop(self, 'Operation', text='Operation')
+        column.prop(self, 'BiasEnum', text='Bias')
+        column.prop(self, 'Scale', text='Scale')
+        
+    def copy(self, node):
+        self.node_tree=node.node_tree.copy()
+
+    def free(self):
+        bpy.data.node_groups.remove(self.node_tree, do_unlink=True)
 
 
 class kmp_came(bpy.types.Operator):
@@ -1810,6 +1987,156 @@ class apply_kcl_flag(bpy.types.Operator):
             context.active_object.data.materials.append(mat)
         return {'FINISHED'}
 
+class get_flag_back(bpy.types.Operator):
+    bl_idname = "kcl.getback"
+    bl_label = "Get Flag Values"
+    bl_options = {'UNDO'}
+
+    def execute(self, context):
+
+        scene = context.scene
+        mytool = scene.kmpt
+        activeObject = context.active_object
+        name = activeObject.name
+        if(checkFlagInName001(name)):
+            if(name[-3:].isnumeric() and name[-4] == "."):
+                name = name[:-4]
+            _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_depth = decodeFlag(name[-4:])
+            mytool.kcl_masterType = _kclType
+            variantName = "kclVariant" + _kclType
+            if(hasattr(mytool,variantName)):
+                setattr(mytool,variantName,_variant)        
+            if(_kclType in kcl_typeATypes):
+                mytool.kcl_wheelDepth = _depth
+                mytool.kcl_trickable = _trickable
+                mytool.kcl_drivable = False if _drivable else True
+            elif(_kclType in kcl_wallTypes):
+                mytool.kcl_bounce = _softWall
+            if(_kclType == "T10"):
+                mytool.kclVariant10Index = _shadow
+            else:
+                mytool.kcl_shadow = _shadow    
+
+        return {'FINISHED'}
+
+def updateBit(operator,context,key="ltr"):
+    selection = []
+    oldSelection = []
+    separated = []
+    lastActive = 0
+    current_mode = bpy.context.object.mode
+    active = context.active_object
+    newFlag = ""
+    wasInEditMode = False
+    scene = context.scene
+    mytool = scene.kmpt
+    if(current_mode == 'EDIT' and mytool.kcl_autoSeparate):
+        wasInEditMode = True
+        oldSelection = context.selected_objects
+        lastActive = context.active_object
+        if(lastActive not in oldSelection):
+            oldSelection.append(lastActive)
+        for i in oldSelection:
+            if not checkFlagInName001(i.name):
+                if(i.name[-4]=="."):
+                    i.name = i.name[:-4]
+                operator.report({"WARNING"}, "At least one of selected objects does not have proper flag.")
+                return {'CANCELLED'}      
+
+        bpy.ops.mesh.separate(type='SELECTED')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        selection = context.selected_objects
+        if(lastActive not in selection):
+            selection.append(lastActive)
+        lastActive.select_set(False)
+        separated = [i for i in selection if i not in oldSelection]
+        bpy.context.view_layer.objects.active = context.selected_objects[0]
+        selection.append(context.selected_objects[0])
+    elif not checkFlagInName001(active.name):
+        return
+
+    if(wasInEditMode):
+        for i in separated:
+            bits = i.name[-8:-4]
+            bits = bin(int(bits, 16))[2:].zfill(16)
+            if("l" in key):
+                bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3) + bits[8:]
+            if("t" in key):
+                bits = bits[:2] + bin(int(mytool.kcl_trickable))[2:].zfill(1) + bits[3:]
+            if("r" in key):
+                bits = bits[:1] + bin(int(mytool.kcl_drivable))[2:].zfill(1) + bits[2:]
+            newFlag = hex(int(bits,2))[2:].zfill(4)
+            i.name = i.name[:-8] + newFlag.upper()
+            i.data.name = i.name
+    else:
+        i = active
+        if(i.name[-4]=="."):
+            i.name = i.name[:-4]
+        bits = i.name[-4:]
+        bits = bin(int(bits, 16))[2:].zfill(16)
+        if("l" in key):
+            bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3) + bits[8:]
+        if("t" in key):
+            bits = bits[:2] + bin(int(mytool.kcl_trickable))[2:].zfill(1) + bits[3:]
+        if("r" in key):
+            bits = bits[:1] + bin(int(mytool.kcl_drivable))[2:].zfill(1) + bits[2:]
+        newFlag = hex(int(bits,2))[2:].zfill(4)
+        i.name = i.name[:-4] + newFlag.upper()
+        i.data.name = i.name
+
+
+    if(wasInEditMode):
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
+        verts = [vert.co for vert in lastActive.data.vertices]
+        if not verts:
+            lastActive.select_set(True)
+            selection.remove(lastActive)
+            bpy.ops.object.delete()
+            bpy.ops.object.select_all(action='DESELECT')
+        for obj in selection:
+            obj.select_set(True)
+
+        if lastActive in selection:
+            bpy.context.view_layer.objects.active = lastActive
+        else:
+            bpy.context.view_layer.objects.active = selection[0]
+        bpy.ops.object.mode_set(mode='EDIT')
+    if(mytool.kcl_applyMaterial == "1"):
+        return 
+    if(wasInEditMode):
+        for i in separated:
+            if(i.name[-4]=="."):
+                i.name = i.name[:-4]
+            flagOnly = i.name[-9:]
+            mat = bpy.data.materials.get(flagOnly)
+            if mat is None:
+                mat = bpy.data.materials.new(name=flagOnly)
+                if(mytool.kcl_applyMaterial == "0"):
+                    mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+                elif(mytool.kcl_applyMaterial == "2"):
+                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_d = decodeFlag(flagOnly[-4:])
+                    color = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
+                    mat.diffuse_color = (color[0],color[1],color[2],1)
+            i.data.materials.clear()
+            i.data.materials.append(mat)
+    else:
+        if(i.name[-4]=="."):
+            active.name = active.name[:-4]
+        flagOnly = active.name[-9:]
+        mat = bpy.data.materials.get(flagOnly)
+        if mat is None:
+            mat = bpy.data.materials.new(name=flagOnly)
+            if(mytool.kcl_applyMaterial == "0"):
+                mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
+            elif(mytool.kcl_applyMaterial == "2"):
+                _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_d = decodeFlag(flagOnly[-4:])
+                color = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
+                mat.diffuse_color = (color[0],color[1],color[2],1)
+        context.active_object.data.materials.clear()
+        context.active_object.data.materials.append(mat)
+
+
 class add_blight(bpy.types.Operator):
     bl_idname = "kcl.addblight"
     bl_label = "Update BLIGHT"
@@ -1824,124 +2151,55 @@ class add_blight(bpy.types.Operator):
         return b
 
     def execute(self, context):
-        selection = []
-        oldSelection = []
-        separated = []
-        lastActive = 0
-        current_mode = bpy.context.object.mode
-        active = context.active_object
-        newFlag = ""
-        wasInEditMode = False
-        scene = context.scene
-        mytool = scene.kmpt
-        if(current_mode == 'EDIT' and mytool.kcl_autoSeparate):
-            wasInEditMode = True
-            oldSelection = context.selected_objects
-            lastActive = context.active_object
-            if(lastActive not in oldSelection):
-                oldSelection.append(lastActive)
-            for i in oldSelection:
-                if not checkFlagInName001(i.name):
-                    if(i.name[-4]=="."):
-                        i.name = i.name[:-4]
-                    self.report({"WARNING"}, "At least one of selected objects does not have proper flag.")
-                    return {'CANCELLED'}      
-
-            bpy.ops.mesh.separate(type='SELECTED')
-            bpy.ops.object.mode_set(mode='OBJECT')
-            selection = context.selected_objects
-            if(lastActive not in selection):
-                selection.append(lastActive)
-            lastActive.select_set(False)
-            separated = [i for i in selection if i not in oldSelection]
-            bpy.context.view_layer.objects.active = context.selected_objects[0]
-            selection.append(context.selected_objects[0])
-        elif not checkFlagInName001(active.name):
-            self.report({"WARNING"}, "Object does have proper flag")
-            return {'CANCELLED'}
-
-        if(wasInEditMode):
-            for i in separated:
-                bits = i.name[-8:-4]
-                bits = bin(int(bits, 16))[2:].zfill(16)
-                bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3)+bits[8:]
-                newFlag = hex(int(bits,2))[2:].zfill(4)
-                i.name = i.name[:-8] + newFlag
-                i.data.name = i.name
-        else:
-            i = active
-            if(i.name[-4]=="."):
-                i.name = i.name[:-4]
-            bits = i.name[-4:]
-            bits = bin(int(bits, 16))[2:].zfill(16)
-            bits = bits[:5] + bin(int(mytool.kcl_shadow))[2:].zfill(3)+bits[8:]
-            newFlag = hex(int(bits,2))[2:].zfill(4)
-            i.name = i.name[:-4] + newFlag.upper()
-            i.data.name = i.name
-
-
-        if(wasInEditMode):
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
-            verts = [vert.co for vert in lastActive.data.vertices]
-            if not verts:
-                lastActive.select_set(True)
-                selection.remove(lastActive)
-                bpy.ops.object.delete()
-                bpy.ops.object.select_all(action='DESELECT')
-            for obj in selection:
-                obj.select_set(True)
-
-            if lastActive in selection:
-                bpy.context.view_layer.objects.active = lastActive
-            else:
-                bpy.context.view_layer.objects.active = selection[0]
-            bpy.ops.object.mode_set(mode='EDIT')
-        if(mytool.kcl_applyMaterial == "1"):
-            return {'FINISHED'}
-        if(wasInEditMode):
-            for i in separated:
-                if(i.name[-4]=="."):
-                    i.name = i.name[:-4]
-                flagOnly = i.name[-9:]
-                mat = bpy.data.materials.get(flagOnly)
-                if mat is None:
-                    mat = bpy.data.materials.new(name=flagOnly)
-                    if(mytool.kcl_applyMaterial == "0"):
-                        mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
-                    elif(mytool.kcl_applyMaterial == "2"):
-                        _kclType,_variant,_shadow,_trickable,_drivable,_softWall = decodeFlag(flagOnly[-4:])
-                        color = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
-                        mat.diffuse_color = (color[0],color[1],color[2],1)
-                i.data.materials.clear()
-                i.data.materials.append(mat)
-        else:
-            if(i.name[-4]=="."):
-                active.name = active.name[:-4]
-            flagOnly = active.name[-9:]
-            mat = bpy.data.materials.get(flagOnly)
-            if mat is None:
-                mat = bpy.data.materials.new(name=flagOnly)
-                if(mytool.kcl_applyMaterial == "0"):
-                    mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
-                elif(mytool.kcl_applyMaterial == "2"):
-                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall = decodeFlag(flagOnly[-4:])
-                    color = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)
-                    mat.diffuse_color = (color[0],color[1],color[2],1)
-            context.active_object.data.materials.clear()
-            context.active_object.data.materials.append(mat)
+        updateBit(self,context,key="l")
+                
         return {'FINISHED'}
         
+class add_trickable(bpy.types.Operator):
+    bl_idname = "kcl.updatetrickable"
+    bl_label = "Update Trickable"
+    bl_options = {'UNDO'}
+    bl_description = "Updates Trickable without changing other flag bits"
+
+    @classmethod
+    def poll(cls,context):
+        b = True
+        if not context.selected_objects:
+            b = False
+        return b
+
+    def execute(self, context):
+        updateBit(self,context,key="t")
+        return {'FINISHED'}
+
+class add_reject(bpy.types.Operator):
+    bl_idname = "kcl.updatereject"
+    bl_label = "Update Reject"
+    bl_options = {'UNDO'}
+    bl_description = "Updates Reject Road without changing other flag bits"
+
+    @classmethod
+    def poll(cls,context):
+        b = True
+        if not context.selected_objects:
+            b = False
+        return b
+
+    def execute(self, context):
+        updateBit(self,context,key="r")
+        return {'FINISHED'}
+
 def decodeFlag(bareFlag):
     binary = bin(int(bareFlag, 16))[2:].zfill(16)
     kclType = "T"+hex(int(binary[-5:],2))[2:].zfill(2).upper()
     variant = hex(int(binary[-8:-5],2))[2:]
     shadow = int(binary[5:8],2)
+    depth = int(binary[3:5],2)
     trickable = int(binary[2],2)
     drivable = int(str(binary[1]) == "0")
     softWall = int(binary[0],2)
 
-    return kclType,variant,shadow,trickable,drivable,softWall
+    return kclType,variant,shadow,trickable,drivable,softWall,depth
 
 
 def getSchemeColor(context,kclType,trickable,drivable,shadow):
@@ -2261,7 +2519,7 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
                 if(self.kclImportColor == "0"):
                     mat.diffuse_color = (random.uniform(0,1),random.uniform(0,1),random.uniform(0,1),1)
                 elif(self.kclImportColor == "1"):
-                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall = decodeFlag(flag)
+                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_d = decodeFlag(flag)
                     colorR = getSchemeColor(context,_kclType,_trickable,_drivable,_shadow)           
                     mat.diffuse_color = (colorR[0],colorR[1],colorR[2],1)
             #Assign mat
@@ -2293,25 +2551,76 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         filepath = self.filepath
-        os.system("del \"" + filepath[:-4]+"-pomidor.dae\"")
         bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH','ARMATURE'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode, bake_anim=False)
-        script_file = os.path.normpath(__file__)
-        directory = os.path.dirname(script_file)
-        converterDir = "\"" + directory + "\\bin\\FbxConverter.exe" + "\""
-        command = converterDir + " \"" + filepath + "\" \"" + filepath[:-4]+"-pomidor.dae" + "\" /sffFBX /dffCOLLADA /v"
-        os.system("\"" + command + "\"")
-        os.system("del \"" + filepath+"\"")
+        dae_convert(filepath=filepath)
+        return {'FINISHED'}
+
+def dae_convert(filepath):
+    script_file = os.path.normpath(__file__)
+    directory = os.path.dirname(script_file)
+    curTime = str(time.time()/2)
+    converterDir = "\"" + directory + "\\bin\\FbxConverter.exe" + "\""
+    daeFile = filepath[:-4]+curTime+".dae"
+    command = converterDir + " \"" + filepath + "\" \"" + daeFile + "\" /sffFBX /dffCOLLADA /v"
+    a = os.popen(command).read()
+    print(a)
+    os.remove(filepath)
+    filename = filepath.split("\\")[-1]
+    os.rename(daeFile,filepath)
+
+class export_minimap(bpy.types.Operator, ExportHelper):
+    bl_idname = "export.minimap"
+    bl_label = "ABMatt: Export Minimap BRRES"    
+    bl_description = "Export Minimap BRRES using ABMatt"
+    filename_ext = ".brres"
+    filter_glob: StringProperty(
+        default='*.brres',
+        options={'HIDDEN'}
+    )
+
+    exportScale : FloatProperty(name="Scale", default = 100)
+    exportSelection : BoolProperty(name="Selection Only", default = False)
+    exportCollection : BoolProperty(name="Active collection", default = False)
+
+    @classmethod
+    def poll(cls,context):
+        a = False
+        check = os.popen('abmatt').read()
+        if(check.startswith("USAGE: abmatt")):
+            a = True
+        return a
+
+    def execute(self, context):
+        filepath = self.filepath
         filename = filepath.split("\\")[-1]
-        os.system("rename \"" + filepath[:-4]+"-pomidor.dae\" \"" + filename + "\"")
+        name = '.'.join(filename.split(".")[:-1])
+        curTime = str(time.time())
+        if not 'map' in name:
+            name += ".map"
+        brresName = name + ".brres"
+        daeName = name + curTime + ".dae"
+        tempFilepath = '\\'.join(filepath.split("\\")[:-1])
+        daeFilepath = tempFilepath + "\\" + daeName
+        brresFilepath = tempFilepath + "\\" + brresName
+        bpy.ops.export_scene.fbx(filepath = daeFilepath, use_selection = self.exportSelection, filter_glob='*.dae', use_active_collection = self.exportCollection, global_scale = self.exportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH'}, use_mesh_modifiers=True, bake_anim=False)
+        dae_convert(filepath=daeFilepath)
+        abmatt = r'abmatt convert "{0}" to "{1}" -o'.format(daeFilepath,brresFilepath)
+        print(abmatt)
+        os.system(abmatt)
+        os.remove(daeFilepath)
+        if(brresFilepath != filepath):
+            os.rename(brresFilepath,filepath)
 
         return {'FINISHED'}
 
 def export_autodesk_dae_button(self, context):
     self.layout.operator("export.autodesk_dae", text="Autodesk Collada (.dae)")
+def export_minimap_button(self, context):
+    self.layout.operator("export.minimap", text="Export Minimap BRRES (Abmatt)")
 def export_kcl_button(self, context):
-    self.layout.operator("kcl.export", text="KCL")
+    self.layout.operator("kcl.export", text="Export KCL (Wiimms)")
 def import_kcl_button(self, context):
-    self.layout.operator("kcl.load", text="KCL")
+    self.layout.operator("kcl.load", text="Import KCL (Wiimms)")
 
 def join_duplicate_objects(main_object, duplicate_object):
     bpy.ops.object.select_all(action='DESELECT')
@@ -2417,6 +2726,16 @@ class merge_duplicate_objects(bpy.types.Operator):
         
         return {'FINISHED'}
 
+
+class toggle_face_orientation(bpy.types.Operator):
+    bl_idname = "mkw.toggleface"
+    bl_label = "Toggle Face Orientation"
+    bl_description = "Toggles Face Orientation"
+
+    def execute(self, context):
+        space = context.area.spaces.active
+        space.overlay.show_face_orientation = not space.overlay.show_face_orientation
+        return {'FINISHED'}
 
 class cursor_kmp (bpy.types.Operator):
     bl_idname = "kmpc.cursor"
@@ -2745,11 +3064,12 @@ class load_kmp_area(bpy.types.Operator, ImportHelper):
                 obj = None
                 activeObject = None
                 if(str(areaShape) == "0"):
-                    bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation, rotation=areaRotation)
+                    bpy.ops.mesh.primitive_cube_add(size=10000/scale, location=areaLocation)
                     activeObject = bpy.context.active_object
                     activeObject.area_shape = False
+
                 if(str(areaShape) == "1"):
-                    bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=areaLocation, rotation=areaRotation)
+                    bpy.ops.mesh.primitive_cylinder_add(radius=5000/scale, depth=10000/scale, location=areaLocation)
                     activeObject = bpy.context.active_object
                     activeObject.area_shape = True
                 
@@ -2762,7 +3082,9 @@ class load_kmp_area(bpy.types.Operator, ImportHelper):
                 string_areaType = 'A'+str(areaType)
                 activeObject.area_type = string_areaType
                 activeObject.area_pror = areaPriority
-               
+                activeObject.rotation_euler[0] = areaRotation[0]
+                activeObject.rotation_euler[1] = areaRotation[1]
+                activeObject.rotation_euler[2] = areaRotation[2]
                 areaTypeLabel = areaType
                 if(areaType == 0):
                     activeObject.area_id = areaCAME
@@ -2917,6 +3239,8 @@ def checkFlagInName(name):
     return True
 
 def checkFlagInName001(name):
+    if(len(name) < 4):
+        return False
     if(name[-3:].isnumeric() and name[-4] == '.'):
         name = name[:-4]
     result = checkFlagInName(name)
@@ -2940,6 +3264,15 @@ def update_scene_handler(scene):
                 if(obj.type == 'CAMERA'):
                     bpy.context.scene.camera = obj
                     scene.frame_end = obj.came_frames
+    if(lastselection != activeObject):
+        if(mytool.util_addVCs):
+            if obj.type == 'MESH':
+                if(BLENDER_33):
+                    if not obj.data.color_attributes:
+                        obj.data.color_attributes.new(name="Vertex Colors",type='BYTE_COLOR',domain='CORNER')
+                else:
+                    if not obj.data.vertex_colors:
+                        obj.data.vertex_colors.new(name="Vertex Colors")
     lastselection = activeObject
 
 @persistent
@@ -3572,7 +3905,9 @@ def create_node_groups():
     create_mirror_group(key="u",name="Mirror U")
     create_mirror_group(key="v",name="Mirror V")
 
-classes = [get_vertex_color, add_vertex_col,PreferenceProperty,add_mirrorUV,add_mirrorU,add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+mynodescat = [ShaderNodeCategory("SH_TEV_STAGE", "My Nodes", items=[NodeItem("ShaderTEVGroup")]),]
+
+classes = [ShaderTEVGroup,get_vertex_color,toggle_face_orientation,add_vertex_col,PreferenceProperty,add_mirrorUV,get_flag_back,add_mirrorU,add_trickable,add_reject, add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, export_minimap, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
 addon_keymaps = []
@@ -3593,6 +3928,7 @@ def register():
         bpy.app.handlers.load_post.append(load_file_handler)
         bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
         bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
+        bpy.types.TOPBAR_MT_file_export.append(export_minimap_button)
         if(wszstInstalled):
             bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
             bpy.types.TOPBAR_MT_file_import.append(import_kcl_button)
@@ -3601,7 +3937,7 @@ def register():
     else:
         bpy.utils.register_class(BadPluginInstall)
 
-
+    register_node_categories("MY_CUSTOM", mynodescat)
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
@@ -3609,6 +3945,8 @@ def register():
         kmi = km.keymap_items.new("kcl.applyflag", type='F', value='PRESS', shift=True)
         addon_keymaps.append((km, kmi))
         kmi = km.keymap_items.new("kcl.addblight", type='W', value='PRESS', ctrl=True)
+        addon_keymaps.append((km, kmi))
+        kmi = km.keymap_items.new("mkw.toggleface", type='U', value='PRESS', shift=True)
         addon_keymaps.append((km, kmi))
  
 def unregister():
@@ -3623,6 +3961,7 @@ def unregister():
     bpy.app.handlers.frame_change_post.clear()
     bpy.app.handlers.load_post.clear()
     bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
+    bpy.types.TOPBAR_MT_file_export.remove(export_minimap_button)
     try:
         bpy.types.TOPBAR_MT_file_export.remove(export_kcl_button)
         bpy.types.TOPBAR_MT_file_import.remove(import_kcl_button)
@@ -3630,6 +3969,7 @@ def unregister():
         pass
     del bpy.types.Scene.kmpt
     
+    unregister_node_categories("MY_CUSTOM")
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
