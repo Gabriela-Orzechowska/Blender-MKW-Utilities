@@ -1,5 +1,5 @@
 # Blender-MKW-Utilities
-A Blender plugin to help creating Mario Kart Wii custom courses.
+A Blender 2.8+ plugin to help creating Mario Kart Wii custom courses.
 
 ## Installation
 Download the newest verion of the plugin from Releases.  
