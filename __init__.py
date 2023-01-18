@@ -1281,7 +1281,7 @@ class ShaderTEVGroup(bpy.types.ShaderNodeCustomGroup):
 
     BiasEnum : bpy.props.EnumProperty(name="Bias", items={('-0.5','-0.5',''),('0.0','0.0',''),('+0.5','+0.5','')}, default='0.0', update=_updateVal)
     Operation : bpy.props.EnumProperty(name="Operation", items={('1','Add',''),('0','Subtract',''),}, default='1', update=_updateVal)
-    Scale : bpy.props.EnumProperty(name="Bias", items={('0.5','0.5',''),('1','1',''),('2','2',''),('4','4','')}, default='1', update=_updateVal)
+    Scale : bpy.props.EnumProperty(name="Scale", items={('0.5','0.5',''),('1','1',''),('2','2',''),('4','4','')}, default='1', update=_updateVal)
 
     def init(self, context):
         self.node_tree=bpy.data.node_groups.new("." + self.bl_name, 'ShaderNodeTree')
@@ -2358,6 +2358,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportRemoveFacedown : BoolProperty(name="Remove facedown road")
     kclExportRemoveFaceup : BoolProperty(name="Remove faceup walls")
     kclExportConvFaceup : BoolProperty(name="Convert faceup walls to road")
+    kclHEXOther : BoolProperty(name="Allow HEX23 and HEX4 format", default=False)
     kclExportTriArea : FloatProperty(name="Minimal Tri Area", min = 0.001, max = 6.0, default = 1.0, description="(Value for already scaled and encoded KCL) Define the minimal area size of KCL triangles. The intention is to ignore triangles that are generally to small. Values between 0.01 and 4.0 are recommended. The careful value 1.0 is used as default. Value 0 disables this filter functionality.")
     kclExportTriHeight : FloatProperty(name="Minimal Tri Height", min = 0.001, max = 4.0, default = 1.0, description="(Value for already scaled and encoded KCL) Define the minimal height of KCL triangles. The intention is to ignore deformed triangles (very slim, but long). Values between 0.01 and 2.0 are recommended. The careful value 1.0 is used as default. Value 0 disables this filter functionality.")
     
@@ -2427,6 +2428,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             wkcltSettings.prop(self,"kclExportRemoveFacedown")
             wkcltSettings.prop(self,"kclExportRemoveFaceup")
         wkcltSettings.prop(self,"kclExportConvFaceup")
+        wkcltSettings.prop(self,"kclHEXOther")
         wkcltSettings.prop(self,"kclExportTriArea")
         wkcltSettings.prop(self,"kclExportTriHeight")
 
@@ -2504,6 +2506,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         wkclt += ("RMFACEDOWN," if self.kclExportRemoveFacedown else "")
         wkclt += ("RMFACEUP," if self.kclExportRemoveFaceup else "")
         wkclt += ("CONVFACEUP," if self.kclExportConvFaceup else "")
+        wkclt += ("HEX," if self.kclHEXOther else "")
         if self.kclExportQuality != "CUSTOM":
             wkclt += self.kclExportQuality
         
