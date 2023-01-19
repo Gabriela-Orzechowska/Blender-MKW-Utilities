@@ -692,28 +692,31 @@ class KCLUtilities(bpy.types.Panel):
                 column.label(text="No object selected")
             else:
                 name = activeObject.name
-                if(checkFlagInName001(name)):
+                if(checkFlagInName001(name,full=False,hex=True)):
                     if(name[-3:].isnumeric() and name[-4] == "."):
                         name = name[:-4]
-                    _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_depth = decodeFlag(name[-4:])
-                    column.label(text="Flag: 0x{0}".format(name[-4:]))
-                    column.label(text="Type: {0}".format(mytool.bl_rna.properties['kcl_masterType'].enum_items[_kclType].name))
-                    variantName = "kclVariant" + _kclType
-                    variant = 0
-                    try:
-                        variant = mytool.bl_rna.properties[variantName].enum_items[_variant].name
-                    except KeyError:
-                        pass
-                    if(variant != 0):
-                        column.label(text="Variant: {0}".format(variant))
-                    if(_kclType in kcl_typeATypes):
-                        column.label(text="Shadow: {0}, Wheel Depth: {1}".format(_shadow,_depth))
-                        column.label(text="Trickable: {0}, Reject: {1}".format("Yes" if _trickable else "No","No" if _drivable else "Yes"))
-                    elif(_kclType in kcl_wallTypes):
-                        column.label(text="Shadow: {0}, Soft Wall: {1}".format(_shadow,_softWall))
-                    elif(_kclType == "T10"):
-                        column.label(text="KMP Index: {0}".format(_shadow))
-                    column.operator("kcl.getback")
+                    if not checkHEX23(name):
+                        _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_depth = decodeFlag(name[-4:])
+                        column.label(text="Flag: 0x{0}".format(name[-4:]))
+                        column.label(text="Type: {0}".format(mytool.bl_rna.properties['kcl_masterType'].enum_items[_kclType].name))
+                        variantName = "kclVariant" + _kclType
+                        variant = 0
+                        try:
+                            variant = mytool.bl_rna.properties[variantName].enum_items[_variant].name
+                        except KeyError:
+                            pass
+                        if(variant != 0):
+                            column.label(text="Variant: {0}".format(variant))
+                        if(_kclType in kcl_typeATypes):
+                            column.label(text="Shadow: {0}, Wheel Depth: {1}".format(_shadow,_depth))
+                            column.label(text="Trickable: {0}, Reject: {1}".format("Yes" if _trickable else "No","No" if _drivable else "Yes"))
+                        elif(_kclType in kcl_wallTypes):
+                            column.label(text="Shadow: {0}, Soft Wall: {1}".format(_shadow,_softWall))
+                        elif(_kclType == "T10"):
+                            column.label(text="KMP Index: {0}".format(_shadow))
+                        column.operator("kcl.getback")
+                    else:
+                       column.label(text="HEX23 not supported yet") 
                 else:
                     column.label(text="No KCL flag found.")
                 
@@ -2089,9 +2092,12 @@ class get_flag_back(bpy.types.Operator):
         mytool = scene.kmpt
         activeObject = context.active_object
         name = activeObject.name
-        if(checkFlagInName001(name)):
+        if(checkFlagInName001(name,full=False,hex=True)):
             if(name[-3:].isnumeric() and name[-4] == "."):
                 name = name[:-4]
+            if(checkHEX23(name)):
+                return {'FINISHED'}
+
             _kclType,_variant,_shadow,_trickable,_drivable,_softWall,_depth = decodeFlag(name[-4:])
             mytool.kcl_masterType = _kclType
             variantName = "kclVariant" + _kclType
@@ -2358,7 +2364,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportRemoveFacedown : BoolProperty(name="Remove facedown road")
     kclExportRemoveFaceup : BoolProperty(name="Remove faceup walls")
     kclExportConvFaceup : BoolProperty(name="Convert faceup walls to road")
-    kclHEXOther : BoolProperty(name="Allow HEX23 and HEX4 format", default=False)
+    kclHEXOther : BoolProperty(name="Export legacy (HEX23 and HEX4) formats", default=False)
     kclExportTriArea : FloatProperty(name="Minimal Tri Area", min = 0.001, max = 6.0, default = 1.0, description="(Value for already scaled and encoded KCL) Define the minimal area size of KCL triangles. The intention is to ignore triangles that are generally to small. Values between 0.01 and 4.0 are recommended. The careful value 1.0 is used as default. Value 0 disables this filter functionality.")
     kclExportTriHeight : FloatProperty(name="Minimal Tri Height", min = 0.001, max = 4.0, default = 1.0, description="(Value for already scaled and encoded KCL) Define the minimal height of KCL triangles. The intention is to ignore deformed triangles (very slim, but long). Values between 0.01 and 2.0 are recommended. The careful value 1.0 is used as default. Value 0 disables this filter functionality.")
     
@@ -2460,8 +2466,12 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             objectsToExport = [obj for obj in bpy.data.objects if obj.type == "MESH"]
         
         if(self.kclExportFlagOnly):
-            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName001(obj.name)]
+            objectsToExport1 = [obj for obj in objectsToExport if checkFlagInName001(obj.name,full=False,hex=self.kclHEXOther)]
             objectsToExport = objectsToExport1
+
+        if not objectsToExport:
+            self.report({"ERROR_INVALID_INPUT"},"Could not export. Output file would be empty.")
+            return {'CANCELLED'}
 
         bpy.ops.object.select_all(action='DESELECT')
         for obj in objectsToExport:
@@ -3313,8 +3323,8 @@ matColors = [(1.0, 0.262251, 0, 0.6),
             (0.445201, 0.8, 0.296138, 0.6), 
             (0.806953, 0.006, 0.016807, 0.6)]
 
-def checkFlagInName(name):
-    if(len(name) < 9):
+def checkFxxxx(name):
+    if(len(name) < 6):
         return False
     try:
         i = int(name[-4:],16)
@@ -3324,20 +3334,69 @@ def checkFlagInName(name):
         return False
     if(name[-5] != "F"):
         return False
+    return True
+
+def checkHEX4(name):
+    if(len(name) < 5):
+        return False
     try:
-        i = int(name[-8:-7],16)
+        i = int(name[-4:],16)
     except ValueError:
         return False
-    if(name[-9] != "_"):
+    if(name[-5] != "_"):
         return False
     return True
 
-def checkFlagInName001(name):
+def checkHEX23(name):
+    if(len(name)<7):
+        return False
+    try:
+        i = int(name[-3:],16)
+    except ValueError:
+        return False
+    if(name[-4] != "_"):
+        return False
+    try:
+        i = int(name[-6:-5],16)
+    except ValueError:
+        return False
+    if(name[-7] != "_"):
+        return False
+    return True
+
+
+
+def checkFlagInName(name,full=True,hex=False):
+    if(full):
+        if(len(name) < 9):
+            return False
+        try:
+            i = int(name[-4:],16)
+        except ValueError:
+            return False
+        if(name[-6] != "_"):
+            return False
+        if(name[-5] != "F"):
+            return False
+        try:
+            i = int(name[-8:-7],16)
+        except ValueError:
+            return False
+        if(name[-9] != "_"):
+            return False
+        return True
+    else:
+        if not hex:
+            return checkFxxxx(name)
+        else:
+            return checkFxxxx(name) or checkHEX23(name) or checkHEX4(name)
+
+def checkFlagInName001(name,full=True,hex=False):
     if(len(name) < 4):
         return False
     if(name[-3:].isnumeric() and name[-4] == '.'):
         name = name[:-4]
-    result = checkFlagInName(name)
+    result = checkFlagInName(name,full=full,hex=hex)
     return result
 
 oldFrameCount = 250
