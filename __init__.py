@@ -2878,7 +2878,7 @@ class kmp_gobj (bpy.types.Operator):
             zpos = round(object_position[1] * scale * -1, 2)
             xrot = round(math.degrees(object.rotation_euler[0]), 2)
             yrot = round(math.degrees(object.rotation_euler[2]), 2)
-            zrot = round(math.degrees(object.rotation_euler[1]), 2)
+            zrot = round(math.degrees(object.rotation_euler[1] * -1), 2)
             xscl = round(object.scale[0],2)
             yscl = round(object.scale[2],2)
             zscl = round(object.scale[1],2)
@@ -2964,7 +2964,7 @@ class kmp_area (bpy.types.Operator):
             zpos = round(object_position[1] * scale * -1, 2)
             xrot = round(math.degrees(object.rotation_euler[0]), 2)
             yrot = round(math.degrees(object.rotation_euler[2]), 2)
-            zrot = round(math.degrees(object.rotation_euler[1]), 2)
+            zrot = round(math.degrees(object.rotation_euler[1]) * -1, 2)
             xscl = round(object.scale[0],2)
             yscl = round(object.scale[2],2)
             zscl = round(object.scale[1],2)
@@ -3163,7 +3163,7 @@ class load_kmp_area(bpy.types.Operator, ImportHelper):
                 if(areaRoute == 255):
                     areaRoute = -1
                 areaLocation = (areaXPos/scale, areaZPos/scale * -1, areaYPos/scale)
-                areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot))
+                areaRotation = (math.radians(areaXRot), math.radians(areaZRot), math.radians(areaYRot) * -1)
                 areaScale = (areaXScale, areaZScale, areaYScale)
                 obj = None
                 activeObject = None
