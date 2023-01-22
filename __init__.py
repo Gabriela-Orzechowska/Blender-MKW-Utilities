@@ -2457,7 +2457,8 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
             if(activeObject.type == "MESH"):
                 bpy.ops.object.mode_set(mode='OBJECT')
         
-        selection = context.selected_objects        
+        selection = context.selected_objects     
+        curTime = str(time.time())
 
         objectsToExport = []
         if(self.kclExportSelection):
@@ -2471,6 +2472,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
         if not objectsToExport:
             self.report({"ERROR_INVALID_INPUT"},"Could not export. Output file would be empty.")
+            
             return {'CANCELLED'}
 
         bpy.ops.object.select_all(action='DESELECT')
@@ -2481,9 +2483,14 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         if(self.kclExportSelection or self.kclExportFlagOnly):
             selectionBool = True
 
-        bpy.ops.export_scene.objkcl(filepath=filepath, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale,use_mesh_modifiers=True)
-        
-        wkclt = "wkclt encode \"" + filepath + "\""
+        objfilename = filepath + curTime
+        try:
+            bpy.ops.export_scene.objkcl(filepath=objfilename, use_selection=selectionBool, use_blen_objects=False, use_materials=False, use_normals=True, use_triangles=True, group_by_object=True, global_scale=self.kclExportScale,use_mesh_modifiers=True)
+        except:
+            self.report({"WARNING"}, "OBJ Export failed. Nothing was exported. Check the console for more details.")
+            return {'CANCELLED'}
+        wkclt = "wkclt encode \"" + objfilename + "\""
+        wkclt = r'wkclt encode "{0}" --dest "{1}"'.format(objfilename,filepath)
         if(self.kclEncodeScale[:] != (1.0,1.0,1.0)):
             wkclt += (" --scale " + str(self.kclEncodeScale[:])[1:-1].replace(" ", ""))
         if(self.kclEncodeShift[:] != (0.0,0.0,0.0)):
@@ -2548,7 +2555,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         
         print(wkclt)
         os.system(wkclt)
-
+        os.remove(objfilename)
         bpy.ops.object.select_all(action='DESELECT')
         for obj in selection:
             obj.select_set(True)

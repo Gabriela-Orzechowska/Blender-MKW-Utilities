@@ -506,8 +506,7 @@ def write_file(filepath, objects, depsgraph, scene,
                             f_smooth = f.use_smooth
                             if f_smooth and smooth_groups:
                                 f_smooth = smooth_groups[f_index]
-                            f_mat = min(f.material_index, len(materials) - 1)
-                            print("OB: {2}, Face: {0}, Material index: {1}".format(f, f_mat,ob))
+                            f_mat = 0
                             key = material_names[f_mat], None  # No image, use None instead.
 
                             # Write the vertex group
