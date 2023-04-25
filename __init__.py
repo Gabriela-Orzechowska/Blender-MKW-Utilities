@@ -158,7 +158,7 @@ class MyProperties(bpy.types.PropertyGroup):
                                                             ("T19", "Weak Wall (0x19)", ''),
                                                             ("T1A", "Effect Trigger (0x1A)", ''),
                                                             ("T1B", "Item State Modifier (0x1B)", ''),
-                                                            ("T1C", "Half-pipe Invisible Road (0x1C)", ''),
+                                                            ("T1C", "Half-pipe Invisible Wall (0x1C)", ''),
                                                             ("T1D", "Moving Road 2 (0x1D)", ''),
                                                             ("T1E", "Special Wall (0x1E)", ''),
                                                             ("T1F", "Wall 5 (0x1F)", ''),
@@ -390,7 +390,7 @@ class MyProperties(bpy.types.PropertyGroup):
     kclVariantT1832 : EnumProperty(name = "Variant", items=[("0", "Music change (normal)", ''),
                                                 ("1", "Music change (normal), echo", ''),
                                                 ("2", "Stronger echo", ''),
-                                                ("3", "Music change (underwater), water ambience enabled when entering from 0, 5 or 6, diabled otherwise", ''),
+                                                ("3", "Music change (underwater), water ambience enabled when entering from 0, 5 or 6, disabled otherwise", ''),
                                                 ("4", "Strongest echo, water ambience enabled", ''),
                                                 ("5", "Music change (normal), strongest echo, water ambience enabled when entering from 3", ''),
                                                 ("6", "Music change (riverside)", '')],update=dummyKCLFunction)
@@ -644,7 +644,8 @@ class KMPUtilities(bpy.types.Panel):
         #layout.operator("kmpe.load")
         if(current_mode == 'VERTEX_PAINT'):
             layout.operator("kmpt.getcolour")
-        layout.operator("szs.export", icon="MOD_BUILD")
+        #layout.operator("szs.export", icon="MOD_BUILD")
+
 class KCLSettings(bpy.types.Panel):
     bl_label = "KCL Settings"
     bl_idname = "MKW_PT_KclSet"
@@ -981,7 +982,9 @@ class get_vertex_color(bpy.types.Operator):
                 selected = i
                 break
             i+=1
+        
         colours = getSelVertColour(selected)
+        print(colours)
         bpy.data.brushes["Draw"].color[0] = colours[0][0]
         bpy.data.brushes["Draw"].color[1] = colours[0][1]
         bpy.data.brushes["Draw"].color[2] = colours[0][2]
@@ -1165,7 +1168,9 @@ class add_vertex_col(bpy.types.Operator):
                             self.report({"WARNING"}, "Couldn't find any Image Texture node: {0}".format(mat.name))
                                         
         return {'FINISHED'}
-                                
+
+
+
 
 class add_mirrorUV(bpy.types.Operator):
     bl_idname = "mat.addmirror"
@@ -1461,6 +1466,241 @@ class ShaderTEVGroup(bpy.types.ShaderNodeCustomGroup):
 
     def free(self):
         bpy.data.node_groups.remove(self.node_tree, do_unlink=True)
+
+class IndirectShaderGroup(bpy.types.ShaderNodeCustomGroup):
+    bl_name = 'IndirectShaderGroup'
+    bl_label = 'Wii Indirect Stage'
+
+    def _updateVal(self,context):
+        transformX = float(self.TransformX)
+        transformY = float(self.TransformY)
+        rotate = float(self.Rotate)
+        scaleX = float(self.ScaleX)
+        scaleY = float(self.ScaleY)
+        txtX = float(self.TextureScaleX)
+        txtY = float(self.TextureScaleY)
+
+        nodes = self.node_tree.nodes
+        if txtX == 0:
+            txtX = 256
+        if txtY == 0:
+            txtY = 256
+
+        nodes['MultiplyBlue'].inputs[1].default_value = scaleX * (256 / txtX);
+        nodes['MultiplyAlpha'].inputs[1].default_value = scaleY * (256 / txtY);
+
+        nodes['TransformXScale'].inputs[1].default_value = transformX * 2
+        nodes['TransformYScale'].inputs[1].default_value = transformY * 2
+    
+        nodes['FixBlue'].inputs[1].default_value = 1 / (txtX * 2)
+        nodes['FixAlpha'].inputs[1].default_value = 1 / (txtY * 2)
+        nodes['FixGreen'].inputs[1].default_value = 1 / (txtY * 2)
+
+        #nodes['RotateNode'].inputs[3].default_value = rotate
+    
+
+    scaleItems=[
+        ('1','1','',1),
+        ('0.5','1/2','',2),
+        ('0.25','1/4','',3),
+        ('0.125','1/8','',4),
+        ('0.0625','1/16','',5),
+        ('0.03125','1/32','',6),
+        ('0.015625','1/64','',7),
+        ('0.0078125','1/128','',8),
+        ('0.00390625','1/256','',9),
+    ]
+
+    UVScaleX : bpy.props.EnumProperty(name="ScaleX",items=scaleItems,default='1',update=_updateVal)
+    UVScaleY : bpy.props.EnumProperty(name="ScaleY",items=scaleItems,default='1',update=_updateVal)
+
+    TextureScaleX : bpy.props.FloatProperty(name="X", default=256, update=_updateVal)
+    TextureScaleY : bpy.props.FloatProperty(name="Y", default=256, update=_updateVal)
+
+    TransformX : bpy.props.FloatProperty(name="X", default=0, update=_updateVal)
+    TransformY : bpy.props.FloatProperty(name="Y", default=0, update=_updateVal)
+    Rotate : bpy.props.FloatProperty(name="R", default=0, update=_updateVal)
+    ScaleX : bpy.props.FloatProperty(name="SX", default=0.5, update=_updateVal)
+    ScaleY : bpy.props.FloatProperty(name="SY", default=0.5, update=_updateVal)
+
+    ImgTexture : BoolProperty(name="Image Node Connected", default=False)
+
+    def init(self,context):
+        self.node_tree=bpy.data.node_groups.new("." + self.bl_name, 'ShaderNodeTree')
+        group_inputs = self.node_tree.nodes.new('NodeGroupInput')
+        group_inputs.name = 'Inputs'
+        group_inputs.label = 'Inputs'
+        group_output = self.node_tree.nodes.new('NodeGroupOutput')
+        group_inputs.location = (-700,0)
+        self.node_tree.inputs.new('NodeSocketColor','Indirect Color')
+        self.node_tree.inputs.new('NodeSocketFloat','Indirect Alpha')
+        self.node_tree.inputs.new('NodeSocketVector','Base Vector')
+
+        group_output.location = (1000,0)
+        self.node_tree.outputs.new('NodeSocketVector',"Vector")
+
+        nodes = self.node_tree.nodes
+
+        splitColors = nodes.new("ShaderNodeSeparateColor")
+        splitColors.mode = 'RGB'
+
+        fixBlue = nodes.new("ShaderNodeMath")
+        fixBlue.operation = 'SUBTRACT'
+        fixBlue.name = 'FixBlue'
+        fixBlue.label = 'FixBlue'
+        fixBlue.inputs[1].default_value = 0.002
+
+        fixAlpha = nodes.new("ShaderNodeMath")
+        fixAlpha.operation = 'SUBTRACT'
+        fixAlpha.name = 'FixAlpha'
+        fixAlpha.label = 'FixAlpha'
+        fixAlpha.inputs[1].default_value = 0.002
+
+        flipBlue = nodes.new("ShaderNodeMath")
+        flipBlue.operation = 'MULTIPLY'
+        
+        flipBlue.inputs[1].default_value = -1
+
+        normalizeBlue = nodes.new("ShaderNodeMath")
+        normalizeBlue.operation = 'ADD'
+        normalizeBlue.inputs[1].default_value = 0.5
+
+        normalizeAlpha = nodes.new("ShaderNodeMath")
+        normalizeAlpha.operation = 'SUBTRACT'
+        normalizeAlpha.inputs[1].default_value = 0.5
+
+        scaleBlue = nodes.new("ShaderNodeMath")
+        scaleBlue.operation = 'MULTIPLY'
+        scaleBlue.label = "MultiplyBlue"
+        scaleBlue.name = "MultiplyBlue"
+
+        scaleAlpha = nodes.new("ShaderNodeMath")
+        scaleAlpha.operation = 'MULTIPLY'
+        scaleAlpha.label = "MultiplyAlpha"
+        scaleAlpha.name = "MultiplyAlpha"
+
+        combineXYZ = nodes.new("ShaderNodeCombineXYZ")
+
+        addVectors = nodes.new("ShaderNodeVectorMath")
+        addVectors.operation = 'ADD'
+
+        addVectors2 = nodes.new("ShaderNodeVectorMath")
+        addVectors2.operation = 'ADD'
+
+        #Transform Nodes
+        fixGreen = nodes.new("ShaderNodeMath")
+        fixGreen.operation = 'SUBTRACT'
+        fixGreen.name = 'FixGreen'
+        fixGreen.label = 'FixGreen'
+        fixGreen.inputs[1].default_value = 0.002
+
+        normalizeGreen = nodes.new("ShaderNodeMath")
+        normalizeGreen.operation = 'SUBTRACT'
+        normalizeGreen.inputs[1].default_value = 0.5
+
+        transformXNode = nodes.new("ShaderNodeMath")
+        transformXNode.operation = 'MULTIPLY'
+        transformXNode.label = "TransformXScale"
+        transformXNode.name = "TransformXScale"
+
+        transformYNode = nodes.new("ShaderNodeMath")
+        transformYNode.operation = 'MULTIPLY'
+        transformYNode.label = "TransformYScale"
+        transformYNode.name = "TransformYScale"
+
+        combineTranslate = nodes.new("ShaderNodeCombineXYZ") 
+
+        #Rotate
+        rotateMatrix = nodes.new("ShaderNodeVectorRotate")
+        rotateMatrix.rotation_type = 'Y_AXIS'
+        rotateMatrix.name = 'RotateNode'
+        rotateMatrix.label = 'RotateNode'
+
+
+        link = self.node_tree.links.new
+        link(group_inputs.outputs['Indirect Color'], splitColors.inputs['Color'])
+        link(splitColors.outputs['Blue'], fixBlue.inputs[0])
+        link(group_inputs.outputs['Indirect Alpha'], fixAlpha.inputs[0])
+        link(fixBlue.outputs['Value'], flipBlue.inputs[0])
+
+        link(flipBlue.outputs['Value'], normalizeBlue.inputs[0])
+        link(fixAlpha.outputs['Value'], normalizeAlpha.inputs[0])
+
+        link(normalizeBlue.outputs['Value'], scaleBlue.inputs[0])
+        link(normalizeAlpha.outputs['Value'], scaleAlpha.inputs[0])
+
+        link(scaleBlue.outputs['Value'], combineXYZ.inputs['Y'])
+        link(scaleAlpha.outputs['Value'], combineXYZ.inputs['X'])
+
+        link(group_inputs.outputs['Base Vector'], addVectors.inputs[0])
+        link(combineXYZ.outputs[0], addVectors.inputs[1])
+        link(addVectors.outputs[0], rotateMatrix.inputs[0])
+        link(rotateMatrix.outputs[0], addVectors2.inputs[0])
+        link(addVectors2.outputs[0],group_output.inputs[0])
+
+        #Translate
+        link(splitColors.outputs['Green'], fixGreen.inputs[0])
+        link(fixGreen.outputs['Value'], normalizeGreen.inputs[0])
+        link(normalizeGreen.outputs['Value'], transformXNode.inputs[0])
+        link(normalizeGreen.outputs['Value'], transformYNode.inputs[0])
+        link(transformXNode.outputs['Value'], combineTranslate.inputs['X'])
+        link(transformYNode.outputs['Value'], combineTranslate.inputs['Y'])
+        link(combineTranslate.outputs[0],addVectors2.inputs[1])
+
+        #Rotate
+
+    def update(self):
+        self.ImgTexture = False
+        if(self.inputs):
+            if self.inputs['Indirect Color'].links:
+                connected_node = self.inputs['Indirect Color'].links[0].from_node
+                if type(connected_node) == bpy.types.ShaderNodeTexImage:
+                    if connected_node.image:
+                        resolution = connected_node.image.size
+                        connected_node.interpolation
+                        self.TextureScaleX = resolution[0]
+                        self.TextureScaleY = resolution[1]
+                        connected_node.image.colorspace_settings.name = 'Linear'
+                        self.ImgTexture = True
+                        if resolution[0] == 0:
+                            resolution[0] = 256
+                        if resolution[1] == 0:
+                            resolution[1] = 256
+                        nodes = self.node_tree.nodes
+
+                        nodes['MultiplyBlue'].inputs[1].default_value = self.ScaleX * (256 / resolution[0]);
+                        nodes['MultiplyAlpha'].inputs[1].default_value = self.ScaleY * (256 / resolution[1]);
+    
+                        nodes['FixBlue'].inputs[1].default_value = 1 / (resolution[0] * 2)
+                        nodes['FixAlpha'].inputs[1].default_value = 1 / (resolution[1] * 2)
+                        nodes['FixGreen'].inputs[1].default_value = 1 / (resolution[1] * 2)
+
+    def draw_buttons(self, context, layout):
+        column=layout.column();
+        if not self.ImgTexture:
+            column.label(text="Texture Dimentions")
+            column.prop(self, 'TextureScaleX', text="X")
+            column.prop(self, 'TextureScaleY', text="Y")
+
+            column.label(text="Matrix")
+        column.label(text="Scale")
+        row = column.row()
+        row.prop(self, 'ScaleX', text="S")
+        row.prop(self, 'ScaleY', text="T")
+        #column.prop(self, 'Rotate', text="")
+        column.label(text="Translate")
+        row = column.row()
+        row.prop(self, 'TransformX', text="S")
+        row.prop(self, 'TransformY', text="T")
+
+
+    def copy(self, node):
+        self.node_tree=node.node_tree.copy()
+
+    def free(self):
+        bpy.data.node_groups.remove(self.node_tree, do_unlink=True)
+        
+
 
 
 class kmp_came(bpy.types.Operator):
@@ -2489,7 +2729,6 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         except:
             self.report({"WARNING"}, "OBJ Export failed. Nothing was exported. Check the console for more details.")
             return {'CANCELLED'}
-        wkclt = "wkclt encode \"" + objfilename + "\""
         wkclt = r'wkclt encode "{0}" --dest "{1}"'.format(objfilename,filepath)
         if(self.kclEncodeScale[:] != (1.0,1.0,1.0)):
             wkclt += (" --scale " + str(self.kclEncodeScale[:])[1:-1].replace(" ", ""))
@@ -2554,7 +2793,11 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
                 wkclt += "KCL_MAX_SIZE="+ str(self.kclSetKCL_MAX_SIZE) + ","
         
         print(wkclt)
-        os.system(wkclt)
+        time1 = time.time()
+        output = os.popen(wkclt).read()
+        diff = time.time() - time1
+        print(output)
+        print("KCL encoded in: {0}s".format(diff))
         os.remove(objfilename)
         bpy.ops.object.select_all(action='DESELECT')
         for obj in selection:
@@ -3414,6 +3657,8 @@ def update_scene_handler(scene):
 
     global lastselection, setting1users, setting2users, oldFrameCount, casting
     mytool = scene.kmpt
+    if not (bpy.context.active_object):
+        return
     activeObject = bpy.context.active_object
     obj = activeObject
     if hasattr(obj, "is_came"):
@@ -4065,9 +4310,10 @@ def create_node_groups():
     create_mirror_group(key="u",name="Mirror U")
     create_mirror_group(key="v",name="Mirror V")
 
-mynodescat = [ShaderNodeCategory("SH_TEV_STAGE", "My Nodes", items=[NodeItem("ShaderTEVGroup")]),]
+mynodescat = [ShaderNodeCategory("SH_TEV_STAGE", "Wii Nodes", items=[NodeItem("ShaderTEVGroup"),
+                                                                     NodeItem("IndirectShaderGroup")]),]
 
-classes = [ShaderTEVGroup,get_vertex_color,toggle_face_orientation,add_vertex_col,PreferenceProperty,add_mirrorUV,get_flag_back,add_mirrorU,add_trickable,add_reject, add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, export_minimap, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+classes = [IndirectShaderGroup,ShaderTEVGroup,get_vertex_color,toggle_face_orientation,add_vertex_col,PreferenceProperty,add_mirrorUV,get_flag_back,add_mirrorU,add_trickable,add_reject, add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, export_minimap, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
  
 wszstInstalled = False
 addon_keymaps = []
@@ -4097,7 +4343,7 @@ def register():
     else:
         bpy.utils.register_class(BadPluginInstall)
 
-    register_node_categories("MY_CUSTOM", mynodescat)
+    register_node_categories("WII_NODES", mynodescat)
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
@@ -4129,7 +4375,7 @@ def unregister():
         pass
     del bpy.types.Scene.kmpt
     
-    unregister_node_categories("MY_CUSTOM")
+    unregister_node_categories("WII_NODES")
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
