@@ -551,9 +551,11 @@ areaTypes = [("A0", "Camera", 'Defines which camera is being used while entering
             ("A8", "Object Grouper", 'Groups objects together'),
             ("A9", "Group Unloader", 'Disables objects of selected group'),
             ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')]
-current_version = "v0.1.13.3"
-latest_version = "v0.1.13.3"
-prerelease_version = "v0.1.13.3"
+current_version = "v0.1.13.4"
+latest_version = "v0.1.13.4"
+prerelease_version = "v0.1.13.4"
+kcl_sign = "Utils   "
+kcl_version = [0x01,0x13,0x04]
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D","T0B"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
@@ -2595,7 +2597,7 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclExportUnBeanCorner : EnumProperty(name="Method", items=[("NONE","None","Don't lower or change wall flags"),
                                                                         ("WEAK","Soften Walls","Change the walls flag in order to remove bean corners (Nintendo method)"),
                                                                         ("LOWER","Lower Walls","Lower walls in order to remove bean corners"),
-                                                                        ("BOTH","Both","Use both methods (Not recomended)")], default="WEAK") 
+                                                                        ("BOTH","Both","Use both methods (Not recomended)")], default="LOWER") 
     kclExportFixAll : BoolProperty(name="Fix All")
     kclExportDrop : BoolProperty(name="Drop All")
     kclExportDropUnused : BoolProperty(name="Drop Unused")
@@ -2800,6 +2802,31 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         print("KCL encoded in: {0}s".format(diff))
         os.remove(objfilename)
         bpy.ops.object.select_all(action='DESELECT')
+
+        # Signature
+        with open(filepath, 'r+b') as f:
+            filecontent = bytearray(f.read());
+            signature = bytearray();
+            signature.extend(map(ord,kcl_sign));
+            i = 0x3C;
+            filecontent[i:i] = signature;
+            saveData = bytes(filecontent);
+            f.seek(0)
+            f.write(saveData);
+            f.seek(i+5)
+            f.write(bytes(kcl_version))
+            f.seek(0)
+            # Patch Offsets
+            offset1 = struct.unpack(">I", f.read(4))[0]
+            offset2 = struct.unpack(">I", f.read(4))[0]
+            offset3 = struct.unpack(">I", f.read(4))[0]
+            offset4 = struct.unpack(">I", f.read(4))[0]
+            f.seek(0)
+            f.write(struct.pack('>I',offset1+8))
+            f.write(struct.pack('>I',offset2+8))
+            f.write(struct.pack('>I',offset3+8))
+            f.write(struct.pack('>I',offset4+8))
+
         for obj in selection:
             obj.select_set(True)
 
@@ -3835,7 +3862,7 @@ class PreferenceProperty(bpy.types.AddonPreferences):
     addTintToTrickable : BoolProperty(name="Add Color Tint to Trickable",default=True)
     trickableColor : FloatVectorProperty(name='Color', subtype='COLOR',min=0.0,max=1.0,default=[0.8,0.8,0])
     trickableScale : FloatProperty(name="Scale",min=0.0,max=1.0,default=0.3)
-    addTintToReject : BoolProperty(name="Add Color Tint to non-Drivable",default=True)
+    addTintToReject : BoolProperty(name="Add Color Tint to Reject",default=True)
     rejectColor : FloatVectorProperty(name='Color', subtype='COLOR',min=0.0,max=1.0,default=[1,0,0])
     rejectScale : FloatProperty(name="Scale",min=0.0,max=1.0,default=0.4)
 
