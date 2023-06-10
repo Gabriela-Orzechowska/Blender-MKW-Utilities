@@ -2626,8 +2626,11 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclSetKCL_MIN_SIZE : IntProperty(name="KCL_MIN_SIZE", default=512,min=1,max=1048576,description="KCL_MAX_TRI is together with KCL_MAX_SIZE 1 critieria of 3 to abort the cube recursion. If creating the octree, a cube is divided into 8 equal sub cubes as long as the number of related triangles is larger than KCL_MAX_TRI. This condition is ignored, if the cube itself is larger than KCL_MAX_SIZE")
     kclSetKCL_MAX_SIZE : IntProperty(name="KCL_MAX_SIZE", default=0, min=256,max=1048576,description="KCL_MAX_SIZE is together with KCL_MAX_TRI 1 criteria of 3 to abort the cube recursion. The recursion is aborted, the cube size is smaller or equal KCL_MAX_TRI and the number of triangles is smaller or equal KCL_MAX_TRI.")
 
-
     def draw(self,context):
+        if context.scene.kcl_set_none:
+            if context.scene.kcl_set_none == True:
+                self.kclExportUnBeanCorner = "NONE"
+
         layout = self.layout
 
         selectionBox = layout.box()
@@ -2693,6 +2696,9 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
         row4.prop(self,"kclEncodeTranslate")
 
     def execute(self, context):
+        if context.scene.kcl_set_none:
+            context.scene.kcl_set_none = False
+
         filepath = self.filepath
         activeObject = bpy.context.active_object
         if hasattr(activeObject,"type"):
@@ -2912,6 +2918,10 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
             os.remove(objFilepath)
             os.remove(objFilepath[:-3] + "mtl")
         merge_duplicate_flags(context)
+
+        scene = context.scene
+        scene.kcl_set_none = True
+
         return {'FINISHED'}
 
 class export_autodesk_dae(bpy.types.Operator, ExportHelper):
@@ -4186,6 +4196,11 @@ def register_came():
         update=updateLastFrame
     )
 
+def register_scene():
+    bpy.types.Scene.kcl_set_none = BoolProperty(
+        default=False
+    )
+
 def register_area():
     global areaTypes
 
@@ -4355,6 +4370,7 @@ def register():
         
         register_area()
         register_came()
+        register_scene()
         for cls in classes:
             bpy.utils.register_class(cls)
         bpy.app.handlers.frame_change_post.append(frame_change_handler)
