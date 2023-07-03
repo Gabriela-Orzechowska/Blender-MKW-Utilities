@@ -1265,28 +1265,17 @@ class ShaderTEVGroup(bpy.types.ShaderNodeCustomGroup):
         bias = float(self.BiasEnum)
         scale = float(self.Scale)
         op = int(self.Operation)
-        if(BLENDER_34):
-            if bias < 0:
-                self.node_tree.nodes['Mix.006'].blend_type = 'SUBTRACT'
-                bias = bias * -1
-            else:
-                self.node_tree.nodes['Mix.006'].blend_type = 'ADD'
-            self.node_tree.nodes['Mix.006'].inputs[7].default_value = (bias,bias,bias,1)
-            self.node_tree.nodes['Mix.007'].inputs[7].default_value = (scale,scale,scale,1)
-
-            self.node_tree.nodes['Mix.004'].inputs[0].default_value = (op - 1) * -1
-            self.node_tree.nodes['Mix.005'].inputs[0].default_value = op
+    
+        if bias < 0:
+            self.node_tree.nodes['Bias'].blend_type = 'SUBTRACT'
+            bias = bias * -1
         else:
-            if bias < 0:
-                self.node_tree.nodes['Bias'].blend_type = 'SUBTRACT'
-                bias = bias * -1
-            else:
-                self.node_tree.nodes['Bias'].blend_type = 'ADD'
-            self.node_tree.nodes['Bias'].inputs[2].default_value = (bias,bias,bias,1)
-            self.node_tree.nodes['Scale'].inputs[2].default_value = (scale,scale,scale,1)
+            self.node_tree.nodes['Bias'].blend_type = 'ADD'
+        self.node_tree.nodes['Bias'].inputs[2].default_value = (bias,bias,bias,1)
+        self.node_tree.nodes['Scale'].inputs[2].default_value = (scale,scale,scale,1)
 
-            self.node_tree.nodes['DMinus'].inputs[0].default_value = (op - 1) * -1
-            self.node_tree.nodes['DPlus'].inputs[0].default_value = op
+        self.node_tree.nodes['DMinus'].inputs[0].default_value = (op - 1) * -1
+        self.node_tree.nodes['DPlus'].inputs[0].default_value = op
         
 
     BiasEnum : bpy.props.EnumProperty(name="Bias", items={('-0.5','-0.5',''),('0.0','0.0',''),('+0.5','+0.5','')}, default='0.0', update=_updateVal)
@@ -1304,156 +1293,82 @@ class ShaderTEVGroup(bpy.types.ShaderNodeCustomGroup):
         self.node_tree.inputs.new('NodeSocketColor','D')
         group_output.location = (1000,0)
         self.node_tree.outputs.new('NodeSocketColor',"Color")
-        if(BLENDER_34):
-            oneMinusNode = self.node_tree.nodes.new("ShaderNodeMix")
-            oneMinusNode.location = (-500,200)
-            oneMinusNode.data_type = 'RGBA'
-            oneMinusNode.blend_type = 'SUBTRACT'
-            oneMinusNode.inputs[0].default_value = 1
-            oneMinusNode.inputs[6].default_value = [1,1,1,1]
-            oneMinusNode.label = "1-C"
+        
+        oneMinusNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        oneMinusNode.location = (-500,200)
+        oneMinusNode.blend_type = 'SUBTRACT'
+        oneMinusNode.inputs[0].default_value = 1
+        oneMinusNode.inputs[1].default_value = [1,1,1,1]
+        oneMinusNode.label = "1-C"
 
-            
-            CtimesB = self.node_tree.nodes.new("ShaderNodeMix")
-            CtimesB.location = (-500,-100)
-            CtimesB.data_type = 'RGBA'
-            CtimesB.blend_type = 'MULTIPLY'
-            CtimesB.inputs[0].default_value = 1
-            CtimesB.label = "C*B"
+        
+        CtimesB = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        CtimesB.location = (-500,-100)
+        CtimesB.blend_type = 'MULTIPLY'
+        CtimesB.inputs[0].default_value = 1
+        CtimesB.label = "C*B"
 
-            timesA = self.node_tree.nodes.new("ShaderNodeMix")
-            timesA.location = (-300,200)
-            timesA.data_type = 'RGBA'
-            timesA.blend_type = 'MULTIPLY'
-            timesA.inputs[0].default_value = 1
-            timesA.label = "(1-C)*A"
+        timesA = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        timesA.location = (-300,200)
+        timesA.blend_type = 'MULTIPLY'
+        timesA.inputs[0].default_value = 1
+        timesA.label = "(1-C)*A"
 
-            addCB = self.node_tree.nodes.new("ShaderNodeMix")
-            addCB.location = (-100,0)
-            addCB.data_type = 'RGBA'
-            addCB.blend_type = 'ADD'
-            addCB.inputs[0].default_value = 1
+        addCB = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        addCB.location = (-100,0)
+        addCB.blend_type = 'ADD'
+        addCB.inputs[0].default_value = 1
 
-            Dminus = self.node_tree.nodes.new("ShaderNodeMix")
-            Dminus.location = (100,50)
-            Dminus.data_type = 'RGBA'
-            Dminus.blend_type = 'SUBTRACT'
-            Dminus.inputs[0].default_value = 0
+        Dminus = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        Dminus.location = (100,50)
+        Dminus.blend_type = 'SUBTRACT'
+        Dminus.inputs[0].default_value = 0
+        Dminus.label = "DMinus"
+        Dminus.name = "DMinus"
 
-            Dplus = self.node_tree.nodes.new("ShaderNodeMix")
-            Dplus.location = (300,50)
-            Dplus.data_type = 'RGBA'
-            Dplus.blend_type = 'ADD'
-            Dplus.inputs[0].default_value = 1
-            
-            biasNode = self.node_tree.nodes.new("ShaderNodeMix")
-            biasNode.location = (500,0)
-            biasNode.data_type = 'RGBA'
-            biasNode.blend_type = 'ADD'
-            biasNode.inputs[0].default_value = 1
-            biasNode.inputs[7].default_value = [0,0,0,1]
+        Dplus = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        Dplus.location = (300,50)
+        Dplus.blend_type = 'ADD'
+        Dplus.inputs[0].default_value = 1
+        Dplus.label = "DPlus"
+        Dplus.name = "DPlus"
+        
+        biasNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        biasNode.location = (500,0)
+        biasNode.blend_type = 'ADD'
+        biasNode.inputs[0].default_value = 1
+        biasNode.inputs[2].default_value = [0,0,0,1]
+        biasNode.label = "Bias"
+        biasNode.name = "Bias"
 
-            scaleNode = self.node_tree.nodes.new("ShaderNodeMix")
-            scaleNode.location = (700,0)
-            scaleNode.data_type = 'RGBA'
-            scaleNode.blend_type = 'MULTIPLY'
-            scaleNode.inputs[0].default_value = 1
-            scaleNode.inputs[7].default_value = [1,1,1,1]
-
-            link = self.node_tree.links.new
-            link(oneMinusNode.inputs[7], group_inputs.outputs['C'])
-            link(CtimesB.inputs[7], group_inputs.outputs['C'])
-            link(CtimesB.inputs[6], group_inputs.outputs['B'])
-            link(timesA.inputs[7], oneMinusNode.outputs[2])
-            link(timesA.inputs[6], group_inputs.outputs['A'])
-            link(addCB.inputs[7],CtimesB.outputs[2])
-            link(addCB.inputs[6],timesA.outputs[2])
-
-            link(Dminus.inputs[7],group_inputs.outputs['D'])
-            link(Dplus.inputs[7],group_inputs.outputs['D'])
-
-            link(Dminus.inputs[6],addCB.outputs[2])
-            link(Dplus.inputs[6],Dminus.outputs[2])
-
-            link(biasNode.inputs[6],Dplus.outputs[2])
-            link(scaleNode.inputs[6],biasNode.outputs[2])
-            link(group_output.inputs[0],scaleNode.outputs[2])
-        else:
-            oneMinusNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            oneMinusNode.location = (-500,200)
-            oneMinusNode.blend_type = 'SUBTRACT'
-            oneMinusNode.inputs[0].default_value = 1
-            oneMinusNode.inputs[1].default_value = [1,1,1,1]
-            oneMinusNode.label = "1-C"
-
-            
-            CtimesB = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            CtimesB.location = (-500,-100)
-            CtimesB.blend_type = 'MULTIPLY'
-            CtimesB.inputs[0].default_value = 1
-            CtimesB.label = "C*B"
-
-            timesA = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            timesA.location = (-300,200)
-            timesA.blend_type = 'MULTIPLY'
-            timesA.inputs[0].default_value = 1
-            timesA.label = "(1-C)*A"
-
-            addCB = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            addCB.location = (-100,0)
-            addCB.blend_type = 'ADD'
-            addCB.inputs[0].default_value = 1
-
-            Dminus = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            Dminus.location = (100,50)
-            Dminus.blend_type = 'SUBTRACT'
-            Dminus.inputs[0].default_value = 0
-            Dminus.label = "DMinus"
-            Dminus.name = "DMinus"
-
-            Dplus = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            Dplus.location = (300,50)
-            Dplus.blend_type = 'ADD'
-            Dplus.inputs[0].default_value = 1
-            Dplus.label = "DPlus"
-            Dplus.name = "DPlus"
-            
-            biasNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            biasNode.location = (500,0)
-            biasNode.blend_type = 'ADD'
-            biasNode.inputs[0].default_value = 1
-            biasNode.inputs[2].default_value = [0,0,0,1]
-            biasNode.label = "Bias"
-            biasNode.name = "Bias"
-
-            scaleNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
-            scaleNode.location = (700,0)
-            scaleNode.blend_type = 'MULTIPLY'
-            scaleNode.inputs[0].default_value = 1
-            scaleNode.inputs[2].default_value = [1,1,1,1]
-            scaleNode.label = "Scale"
-            scaleNode.name = "Scale"
+        scaleNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
+        scaleNode.location = (700,0)
+        scaleNode.blend_type = 'MULTIPLY'
+        scaleNode.inputs[0].default_value = 1
+        scaleNode.inputs[2].default_value = [1,1,1,1]
+        scaleNode.label = "Scale"
+        scaleNode.name = "Scale"
 
             
 
-            link = self.node_tree.links.new
-            link(oneMinusNode.inputs[2], group_inputs.outputs['C'])
-            link(CtimesB.inputs[2], group_inputs.outputs['C'])
-            link(CtimesB.inputs[1], group_inputs.outputs['B'])
-            link(timesA.inputs[2], oneMinusNode.outputs[0])
-            link(timesA.inputs[1], group_inputs.outputs['A'])
-            link(addCB.inputs[2],CtimesB.outputs[0])
-            link(addCB.inputs[1],timesA.outputs[0])
+        link = self.node_tree.links.new
+        link(oneMinusNode.inputs[2], group_inputs.outputs['C'])
+        link(CtimesB.inputs[2], group_inputs.outputs['C'])
+        link(CtimesB.inputs[1], group_inputs.outputs['B'])
+        link(timesA.inputs[2], oneMinusNode.outputs[0])
+        link(timesA.inputs[1], group_inputs.outputs['A'])
+        link(addCB.inputs[2],CtimesB.outputs[0])
+        link(addCB.inputs[1],timesA.outputs[0])
 
-            link(Dminus.inputs[2],group_inputs.outputs['D'])
-            link(Dplus.inputs[2],group_inputs.outputs['D'])
+        link(Dminus.inputs[2],group_inputs.outputs['D'])
+        link(Dplus.inputs[2],group_inputs.outputs['D'])
 
-            link(Dminus.inputs[1],addCB.outputs[0])
-            link(Dplus.inputs[1],Dminus.outputs[0])
+        link(Dminus.inputs[1],addCB.outputs[0])
+        link(Dplus.inputs[1],Dminus.outputs[0])
 
-            link(biasNode.inputs[1],Dplus.outputs[0])
-            link(scaleNode.inputs[1],biasNode.outputs[0])
-            link(group_output.inputs[0],scaleNode.outputs[0])
+        link(biasNode.inputs[1],Dplus.outputs[0])
+        link(scaleNode.inputs[1],biasNode.outputs[0])
+        link(group_output.inputs[0],scaleNode.outputs[0])
 
 
 
@@ -1658,8 +1573,11 @@ class IndirectShaderGroup(bpy.types.ShaderNodeCustomGroup):
                 connected_node = self.inputs['Indirect Color'].links[0].from_node
                 if type(connected_node) == bpy.types.ShaderNodeTexImage:
                     if connected_node.image:
-                        resolution = connected_node.image.size
+                        resolution_image = connected_node.image.size
                         connected_node.interpolation
+                        resolution = [256, 256]
+                        resolution[0] = resolution_image[0]
+                        resolution[1] = resolution_image[1]
                         self.TextureScaleX = resolution[0]
                         self.TextureScaleY = resolution[1]
                         connected_node.image.colorspace_settings.name = 'Linear'
