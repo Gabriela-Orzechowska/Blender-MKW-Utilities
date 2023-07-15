@@ -735,11 +735,12 @@ class KCLUtilities(bpy.types.Panel):
             layout.operator("open.wszst")
         
         layout.prop(mytool, "kcl_masterType")
-        layout.prop(mytool, variantPropName)
         if(mytool.kcl_masterType == "T18"):
             layout.prop(mytool, "kclVariantT18Circuits")
             t18variant = "kclVariantT18" + mytool.kclVariantT18Circuits
             layout.prop(mytool, t18variant)
+        else:
+            layout.prop(mytool, variantPropName)
         
         if(mytool.kcl_masterType in kcl_typeATypes):
             layout.prop(mytool, "kcl_wheelDepth")
@@ -1008,6 +1009,7 @@ def getSelVertColour(vertex_index: int):
     else:
         
         for loop in bm.verts[vertex_index].link_loops:
+            print(loop)
             colours.append(loop[vc_layer])
     
     bpy.ops.object.mode_set(mode=mode_initial)
@@ -1046,7 +1048,7 @@ class set_alpha_hashed(bpy.types.Operator):
                 for item in obj.material_slots:
                     mat = bpy.data.materials[item.name]
                     if mat.use_nodes:                    
-                        mat.blend_method = 'BLEND'
+                        mat.blend_method = 'HASHED'
                         shader = mat.node_tree.nodes['Principled BSDF']
                         for node in mat.node_tree.nodes:
                             if node.type == 'TEX_IMAGE':
@@ -2245,6 +2247,7 @@ class get_flag_back(bpy.types.Operator):
     bl_idname = "kcl.getback"
     bl_label = "Get Flag Values"
     bl_options = {'UNDO'}
+    bl_description = "Get current flag"
 
     def execute(self, context):
 
@@ -4324,9 +4327,9 @@ def unregister():
         bpy.utils.unregister_class(BadPluginInstall)
     except RuntimeError:
         pass
-    bpy.app.handlers.depsgraph_update_post.clear()
-    bpy.app.handlers.frame_change_post.clear()
-    bpy.app.handlers.load_post.clear()
+    bpy.app.handlers.depsgraph_update_post.remove(update_scene_handler)
+    bpy.app.handlers.frame_change_post.remove(frame_change_handler)
+    bpy.app.handlers.load_post.remove(load_file_handler)
     bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
     bpy.types.TOPBAR_MT_file_export.remove(export_minimap_button)
     try:
