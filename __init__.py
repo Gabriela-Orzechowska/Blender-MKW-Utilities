@@ -23,6 +23,7 @@ import numpy as np
 from mathutils import Vector
 import time
 import bpy
+
 from bpy.props import (
     BoolProperty,
     FloatProperty,
@@ -38,6 +39,7 @@ from bpy_extras.io_utils import (
     orientation_helper,
     path_reference_mode,
     axis_conversion,
+    _check_axis_conversion,
 )
 from bpy.app.handlers import persistent
 from . import export_obj
@@ -48,6 +50,7 @@ from nodeitems_builtins import ShaderNodeCategory
 BLENDER_30 = bpy.app.version[0] >= 3
 BLENDER_33 = bpy.app.version[0] >= 3 and bpy.app.version[1] >= 3
 BLENDER_34 = bpy.app.version[0] >= 3 and bpy.app.version[1] >= 4
+BLENDER_40 = bpy.app.version[0] >= 4
 lastselection = []
 setting1users = ["A2", "A3", "A6", "A8", "A9", "A10"]
 setting2users = ["A3", "A6", "A10"]
@@ -551,14 +554,16 @@ areaTypes = [("A0", "Camera", 'Defines which camera is being used while entering
             ("A8", "Object Grouper", 'Groups objects together'),
             ("A9", "Group Unloader", 'Disables objects of selected group'),
             ("A10", "Fall Boundary", 'Used to define fall boundaries on tournaments')]
-current_version = "v0.1.13.5"
-latest_version = "v0.1.13.5"
-prerelease_version = "v0.1.13.5"
+current_version = "v0.1.13.6"
+latest_version = "v0.1.13.6"
+prerelease_version = "v0.1.13.6"
 kcl_sign = "Utils   "
-kcl_version = [0x01,0x13,0x05]
+kcl_version = [0x01,0x13,0x06]
 
 kcl_typeATypes = ["T00","T01","T02","T03","T04","T05","T06","T07","T08","T09","T0A","T16","T17","T1D","T0B"]
 kcl_wallTypes = ["T0C","T0D","T0E","T0F","T1E","T1F", "T19"]
+
+theresAnUpdate = False
 
 class openGithub(bpy.types.Operator):
     bl_idname = "open.download"
@@ -601,6 +606,15 @@ class buildSZSCurrent(bpy.types.Operator):
         bpy.ops.szs.export()
         return {'FINISHED'}
 
+class remind_me_later(bpy.types.Operator):
+    bl_idname = "kmremind.later"
+    bl_label = "Remind me later"
+
+    def execute(self, context):
+        global theresAnUpdate
+        theresAnUpdate = False
+        return {'FINISHED'}
+
 class KMPUtilities(bpy.types.Panel):
     global latest_version, prerelease_version, current_version
     bl_label = "Main Utilities"
@@ -614,21 +628,30 @@ class KMPUtilities(bpy.types.Panel):
         layout.label(text="", icon='BLENDER')
 
     def draw(self, context):
+        if theresAnUpdate:
+            layout = self.layout
+            scene = context.scene
+            mytool = scene.kmpt
+            newVersionLayout = layout.column()
+            updateText = "New version available!: {0}"
+            if(get_prefs(context).updates_bool):
+                if(get_prefs(context).prerelease_bool):
+                    if(prerelease_version != current_version):
+                        newVersionLayout.label(text=updateText.format(prerelease_version))
+                        newVersionLayout.operator("open.download")
+                        newVersionLayout.operator("kmremind.later")
+                        newVersionLayout.label(text="")
+                elif(latest_version != current_version):
+                    newVersionLayout.label(text=updateText.format(latest_version))
+                    newVersionLayout.operator("open.download")
+                    newVersionLayout.operator("kmremind.later")
+                    newVersionLayout.label(text="") 
+
+            return
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
-        newVersionLayout = layout.column()
-        updateText = "New version available!: {0}"
-        if(get_prefs(context).updates_bool):
-            if(get_prefs(context).prerelease_bool):
-                if(prerelease_version != current_version):
-                    newVersionLayout.label(text=updateText.format(prerelease_version))
-                    newVersionLayout.operator("open.download")
-                    newVersionLayout.label(text="")
-            elif(latest_version != current_version):
-                newVersionLayout.label(text=updateText.format(latest_version))
-                newVersionLayout.operator("open.download")
-                newVersionLayout.label(text="") 
+        
         layout.operator("open.issue")
         layout.prop(mytool, "scale")
         layout.operator("kmpc.cursor")
@@ -658,6 +681,8 @@ class KCLSettings(bpy.types.Panel):
         layout = self.layout
         layout.label(text="", icon='PREFERENCES')
     def draw(self, context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
@@ -679,6 +704,9 @@ class KCLUtilities(bpy.types.Panel):
         layout.label(text="", icon='FACESEL')
     def draw(self, context):
         
+        if theresAnUpdate:
+            return
+
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt   
@@ -784,6 +812,8 @@ class AREAUtilities(bpy.types.Panel):
         layout = self.layout
         layout.label(text="", icon='CUBE')
     def draw(self, context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
@@ -859,6 +889,8 @@ class CAMEUtilities(bpy.types.Panel):
         layout = self.layout
         layout.label(text="", icon='VIEW_CAMERA')
     def draw(self, context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
@@ -906,6 +938,8 @@ class RouteUtilities(bpy.types.Panel):
         layout = self.layout
         layout.label(text="", icon='CURVE_DATA')
     def draw(self, context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
@@ -925,6 +959,8 @@ class MaterialUtilities(bpy.types.Panel):
         layout.label(text="", icon='MATERIAL')
 
     def draw(self, context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         scene = context.scene
         mytool = scene.kmpt
@@ -949,6 +985,8 @@ class ShaderUtilities(bpy.types.Panel):
         layout = self.layout
         layout.label(text="", icon='MATERIAL')
     def draw(self,context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         layout.operator("kmpt.vercolor")
         layout.operator("kmpt.blend")
@@ -967,6 +1005,8 @@ class ShaderGroupUtilities(bpy.types.Panel):
         layout = self.layout
         layout.label(text="", icon='NODETREE')
     def draw(self,context):
+        if theresAnUpdate:
+            return
         layout = self.layout
         layout.operator("mat.addmirror")
         layout.operator("mat.addmirroru")
@@ -1214,6 +1254,9 @@ def create_mirror_group(key="uv",name='Mirror UV'):
     if(name in bpy.data.node_groups):
         return bpy.data.node_groups[name]
 
+    if BLENDER_40:
+        return
+
     mirror_group = bpy.data.node_groups.new(name, 'ShaderNodeTree')
     mirror_group.name = name
     group_outputs = mirror_group.nodes.new('NodeGroupOutput')
@@ -1289,12 +1332,21 @@ class ShaderTEVGroup(bpy.types.ShaderNodeCustomGroup):
         group_inputs = self.node_tree.nodes.new('NodeGroupInput')
         group_output = self.node_tree.nodes.new('NodeGroupOutput')
         group_inputs.location = (-700,0)
-        self.node_tree.inputs.new('NodeSocketColor','A')
-        self.node_tree.inputs.new('NodeSocketColor','B')
-        self.node_tree.inputs.new('NodeSocketColor','C')
-        self.node_tree.inputs.new('NodeSocketColor','D')
+        if BLENDER_40:
+            self.node_tree.interface.new_socket(socket_type='NodeSocketColor',name='A',in_out='INPUT')
+            self.node_tree.interface.new_socket(socket_type='NodeSocketColor',name='B',in_out='INPUT')
+            self.node_tree.interface.new_socket(socket_type='NodeSocketColor',name='C',in_out='INPUT')
+            self.node_tree.interface.new_socket(socket_type='NodeSocketColor',name='D',in_out='INPUT')
+        else:
+            self.node_tree.inputs.new('NodeSocketColor','A')
+            self.node_tree.inputs.new('NodeSocketColor','B')
+            self.node_tree.inputs.new('NodeSocketColor','C')
+            self.node_tree.inputs.new('NodeSocketColor','D')
         group_output.location = (1000,0)
-        self.node_tree.outputs.new('NodeSocketColor',"Color")
+        if BLENDER_40:
+            self.node_tree.interface.new_socket(socket_type='NodeSocketColor',name="Color",in_out='OUTPUT')
+        else:
+            self.node_tree.outputs.new('NodeSocketColor',"Color")
         
         oneMinusNode = self.node_tree.nodes.new("ShaderNodeMixRGB")
         oneMinusNode.location = (-500,200)
@@ -1451,12 +1503,20 @@ class IndirectShaderGroup(bpy.types.ShaderNodeCustomGroup):
         group_inputs.label = 'Inputs'
         group_output = self.node_tree.nodes.new('NodeGroupOutput')
         group_inputs.location = (-700,0)
-        self.node_tree.inputs.new('NodeSocketColor','Indirect Color')
-        self.node_tree.inputs.new('NodeSocketFloat','Indirect Alpha')
-        self.node_tree.inputs.new('NodeSocketVector','Base Vector')
+        if BLENDER_40:
+            self.node_tree.interface.new_socket(socket_type='NodeSocketColor',name='Indirect Color',in_out='INPUT')
+            self.node_tree.interface.new_socket(socket_type='NodeSocketFloat',name='Indirect Alpha',in_out='INPUT')
+            self.node_tree.interface.new_socket(socket_type='NodeSocketVector',name='Base Vector',in_out='INPUT')
+        else:
+            self.node_tree.inputs.new('NodeSocketColor','Indirect Color')
+            self.node_tree.inputs.new('NodeSocketFloat','Indirect Alpha')
+            self.node_tree.inputs.new('NodeSocketVector','Base Vector')
 
         group_output.location = (1000,0)
-        self.node_tree.outputs.new('NodeSocketVector',"Vector")
+        if BLENDER_40:
+            self.node_tree.interface.new_socket(socket_type='NodeSocketVector',name="Vector",in_out='OUTPUT')
+        else:
+            self.node_tree.outputs.new('NodeSocketVector',"Vector")
 
         nodes = self.node_tree.nodes
 
@@ -1582,7 +1642,11 @@ class IndirectShaderGroup(bpy.types.ShaderNodeCustomGroup):
                         resolution[1] = resolution_image[1]
                         self.TextureScaleX = resolution[0]
                         self.TextureScaleY = resolution[1]
-                        connected_node.image.colorspace_settings.name = 'Linear'
+                        
+                        if BLENDER_40:
+                            connected_node.image.colorspace_settings.name = 'Linear CIE-XYZ D65'
+                        else:
+                            connected_node.image.colorspace_settings.name = 'Linear'
                         self.ImgTexture = True
                         if resolution[0] == 0:
                             resolution[0] = 256
@@ -2494,7 +2558,7 @@ def getSchemeColor(context,kclType,trickable,drivable,shadow):
                 color[2] = color[2] - (0.5 * tintScale) + (tint[2] * tintScale)
     return color
 
-class export_kcl_file(bpy.types.Operator, ExportHelper):
+class export_kcl_file(bpy.types.Operator):
     bl_idname = "kcl.export"
     bl_label = "Export KCL"
     bl_options = {'UNDO','PRESET'}
@@ -2547,11 +2611,63 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
     kclSetKCL_MIN_SIZE : IntProperty(name="KCL_MIN_SIZE", default=512,min=1,max=1048576,description="KCL_MAX_TRI is together with KCL_MAX_SIZE 1 critieria of 3 to abort the cube recursion. If creating the octree, a cube is divided into 8 equal sub cubes as long as the number of related triangles is larger than KCL_MAX_TRI. This condition is ignored, if the cube itself is larger than KCL_MAX_SIZE")
     kclSetKCL_MAX_SIZE : IntProperty(name="KCL_MAX_SIZE", default=0, min=256,max=1048576,description="KCL_MAX_SIZE is together with KCL_MAX_TRI 1 criteria of 3 to abort the cube recursion. The recursion is aborted, the cube size is smaller or equal KCL_MAX_TRI and the number of triangles is smaller or equal KCL_MAX_TRI.")
 
-    def draw(self,context):
+    filepath: StringProperty(
+        name="File Path",
+        description="Filepath used for exporting the file",
+        maxlen=1024,
+        subtype='FILE_PATH',
+    )
+    check_existing: BoolProperty(
+        name="Check Existing",
+        description="Check and warn on overwriting existing files",
+        default=True,
+        options={'HIDDEN'},
+    )
+
+    # subclasses can override with decorator
+    # True == use ext, False == no ext, None == do nothing.
+    check_extension = True
+
+    def invoke(self, context, _event):
+        import os
         if context.scene.kcl_set_none:
             if context.scene.kcl_set_none == True:
                 self.kclExportUnBeanCorner = "NONE"
+        if not self.filepath:
+            blend_filepath = context.blend_data.filepath
+            if not blend_filepath:
+                blend_filepath = "untitled"
+            else:
+                blend_filepath = os.path.splitext(blend_filepath)[0]
 
+            self.filepath = blend_filepath + self.filename_ext
+
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def check(self, _context):
+        import os
+        change_ext = False
+        change_axis = _check_axis_conversion(self)
+
+        check_extension = self.check_extension
+
+        if check_extension is not None:
+            filepath = self.filepath
+            if os.path.basename(filepath):
+                if check_extension:
+                    filepath = bpy.path.ensure_ext(
+                        os.path.splitext(filepath)[0],
+                        self.filename_ext,
+                    )
+                if filepath != self.filepath:
+                    self.filepath = filepath
+                    change_ext = True
+
+        return (change_ext or change_axis)
+
+
+    def draw(self,context):
         layout = self.layout
 
         selectionBox = layout.box()
@@ -2679,8 +2795,10 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
                 value[2] = round(value[2] * self.kclExportScale,4)
             wkclt += (" --translate " + str(value[:])[1:-1].replace(" ", ""))
         
-        wkclt += " --tri-area " + str(self.kclExportTriArea)
-        wkclt += " --tri-height " + str(self.kclExportTriHeight)
+        if self.kclExportTriArea != 1.0:
+            wkclt += " --tri-area " + str(self.kclExportTriArea)
+        if self.kclExportTriHeight != 1.0:
+            wkclt += " --tri-height " + str(self.kclExportTriHeight)
         wkclt += " -o --kcl="
         wkclt += ("WEAKWALLS," if self.kclExportUnBeanCorner == "WEAK" or self.kclExportUnBeanCorner == "BOTH" else "")
         wkclt += ("DROP," if self.kclExportDrop else "")
@@ -2759,13 +2877,27 @@ class export_kcl_file(bpy.types.Operator, ExportHelper):
 
         return {'FINISHED'}
 
-class import_kcl_file(bpy.types.Operator, ImportHelper):
+class import_kcl_file(bpy.types.Operator):
     bl_idname = "kcl.load"
     bl_label = "Import KCL"       
     filename_ext = '.kcl'
     bl_options = {'UNDO'}
     bl_description = "Loads KCL file"
     
+    filepath: StringProperty(
+        name="File Path",
+        description="Filepath used for importing the file",
+        maxlen=1024,
+        subtype='FILE_PATH',
+    )
+
+    def invoke(self, context, _event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def check(self, _context):
+        return _check_axis_conversion(self)
+
     filter_glob: StringProperty(
         default='*.kcl;*.szs',
         options={'HIDDEN'}
@@ -2794,7 +2926,10 @@ class import_kcl_file(bpy.types.Operator, ImportHelper):
 
         #Import OBJ to Blenduh
         bpy.ops.object.select_all(action='DESELECT')
-        bpy.ops.import_scene.obj(filepath=objFilepath,use_split_groups=True,use_image_search=False)
+        if BLENDER_40:
+            bpy.ops.wm.obj_import(filepath=objFilepath,use_split_groups=True)
+        else:
+            bpy.ops.import_scene.obj(filepath=objFilepath,use_split_groups=True,use_image_search=False)
 
         context.view_layer.objects.active = bpy.context.selected_objects[0]
         objs = bpy.context.selected_objects
@@ -2898,6 +3033,7 @@ class export_minimap(bpy.types.Operator, ExportHelper):
     def poll(cls,context):
         a = False
         check = os.popen('abmatt').read()
+        print(check)
         if(check.startswith("USAGE: abmatt")):
             a = True
         return a
@@ -2917,7 +3053,8 @@ class export_minimap(bpy.types.Operator, ExportHelper):
         bpy.ops.export_scene.fbx(filepath = daeFilepath, use_selection = self.exportSelection, filter_glob='*.dae', use_active_collection = self.exportCollection, global_scale = self.exportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH'}, use_mesh_modifiers=True, bake_anim=False)
         dae_convert(filepath=daeFilepath)
         abmatt = r'abmatt convert "{0}" to "{1}" -o'.format(daeFilepath,brresFilepath)
-        print(abmatt)
+        os.system(abmatt)
+        abmatt = r'abmatt -b {0} -o -n * -k SCALE -v multiplyby1'.format(brresFilepath)
         os.system(abmatt)
         os.remove(daeFilepath)
         if(brresFilepath != filepath):
@@ -3640,6 +3777,7 @@ def update_scene_handler(scene):
 
 @persistent
 def load_file_handler(dummy):
+    global theresAnUpdate
     global current_version, latest_version, prerelease_version
     responseLatest = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases/latest")
     responseVersions = requests.get("https://api.github.com/repos/Gabriela-Orzechowska/Blender-MKW-Utilities/releases")
@@ -3647,6 +3785,14 @@ def load_file_handler(dummy):
     responseVersions = requests.get(prerelease)
     prerelease_version = responseVersions.json()["tag_name"]
     latest_version = responseLatest.json()["tag_name"]
+
+    if(get_prefs(bpy.context).updates_bool):
+        if(get_prefs(bpy.context).prerelease_bool):
+            if(prerelease_version != current_version):
+                theresAnUpdate = True
+        elif current_version != latest_version:
+            theresAnUpdate = True
+
     create_node_groups()
 
 @persistent
@@ -4276,7 +4422,23 @@ def create_node_groups():
 mynodescat = [ShaderNodeCategory("SH_TEV_STAGE", "Wii Nodes", items=[NodeItem("ShaderTEVGroup"),
                                                                      NodeItem("IndirectShaderGroup")]),]
 
-classes = [IndirectShaderGroup,ShaderTEVGroup,get_vertex_color,toggle_face_orientation,add_vertex_col,PreferenceProperty,add_mirrorUV,get_flag_back,add_mirrorU,add_trickable,add_reject, add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, export_minimap, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae]
+from bl_ui import node_add_menu
+
+class NODE_MT_category_wii(bpy.types.Menu):
+    bl_idname = "NODE_MT_category_wii"
+    bl_label = "Wii Shaders"
+    def draw(self, _context):
+        layout = self.layout
+
+        node_add_menu.add_node_type(layout, "ShaderTEVGroup")
+        node_add_menu.add_node_type(layout, "IndirectShaderGroup")
+
+        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+
+def NewNodeMenu(self, _context):
+    self.layout.menu("NODE_MT_category_wii")
+
+classes = [remind_me_later,IndirectShaderGroup,ShaderTEVGroup,get_vertex_color,toggle_face_orientation,add_vertex_col,PreferenceProperty,add_mirrorUV,get_flag_back,add_mirrorU,add_trickable,add_reject, add_mirrorV, ShaderUtilities, MyProperties, restore_specular_metalic, ShaderGroupUtilities, export_minimap, set_alpha_hashed, KMPUtilities, remove_duplicate_materials, KCLSettings, KCLUtilities,ExportPrefs,ImportPrefs,ExportOBJKCL, AREAUtilities,CAMEUtilities, RouteUtilities, MaterialUtilities,add_blight, scene_setup, keyframes_to_route, openWSZSTPage, openIssuePage, timeline_to_route, set_alpha_blend, set_alpha_clip, remove_specular_metalic, create_camera, kmp_came, apply_kcl_flag, cursor_kmp, import_kcl_file, kmp_gobj, kmp_area, kmp_c_cube_area, kmp_c_cylinder_area, load_kmp_area, load_kmp_enemy, export_kcl_file, openGithub, merge_duplicate_objects, export_autodesk_dae,NODE_MT_category_wii]
  
 wszstInstalled = False
 addon_keymaps = []
@@ -4299,6 +4461,7 @@ def register():
         bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
         bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
         bpy.types.TOPBAR_MT_file_export.append(export_minimap_button)
+        bpy.types.NODE_MT_shader_node_add_all.append(NewNodeMenu)
         if(wszstInstalled):
             bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
             bpy.types.TOPBAR_MT_file_import.append(import_kcl_button)
@@ -4307,7 +4470,6 @@ def register():
     else:
         bpy.utils.register_class(BadPluginInstall)
 
-    register_node_categories("WII_NODES", mynodescat)
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
@@ -4332,6 +4494,7 @@ def unregister():
     bpy.app.handlers.load_post.remove(load_file_handler)
     bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
     bpy.types.TOPBAR_MT_file_export.remove(export_minimap_button)
+    bpy.types.NODE_MT_shader_node_add_all.remove(NewNodeMenu)
     try:
         bpy.types.TOPBAR_MT_file_export.remove(export_kcl_button)
         bpy.types.TOPBAR_MT_file_import.remove(import_kcl_button)
@@ -4339,7 +4502,7 @@ def unregister():
         pass
     del bpy.types.Scene.kmpt
     
-    unregister_node_categories("WII_NODES")
+    # unregister_node_categories("WII_NODES")
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
