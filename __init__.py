@@ -3,7 +3,7 @@ bl_info = {
     "name" : "Mario Kart Wii Utilities",
     "author" : "Gabriela_",
     "version" : (1, 10, 1),
-    "blender" : (2, 82, 0),
+    "blender" : (3, 1, 0),
     "location" : "View3d > Tool",
     "warning" : "",
     "wiki_url" : "",
@@ -1149,9 +1149,9 @@ class restore_specular_metalic(bpy.types.Operator):
                     mat = bpy.data.materials[item.name]
                     if mat.use_nodes:
                         if(BLENDER_30):
-                            mat.node_tree.nodes['Principled BSDF'].inputs[7].default_value = 0.5
+                            mat.node_tree.nodes['Principled BSDF'].inputs[7].default_value = 1
                         else:                    
-                            mat.node_tree.nodes['Principled BSDF'].inputs[5].default_value = 0.5
+                            mat.node_tree.nodes['Principled BSDF'].inputs[5].default_value = 1
     
 
         return {'FINISHED'}
@@ -1166,6 +1166,7 @@ class add_vertex_col(bpy.types.Operator):
         for obj in selected:
             if obj.type == 'MESH' and not obj.active_material == None:
                 if(BLENDER_33):
+                  
                     if not obj.data.color_attributes:
                         obj.data.color_attributes.new(name="Vertex Colors",type='BYTE_COLOR',domain='CORNER')
                 else:
@@ -2998,7 +2999,11 @@ class export_autodesk_dae(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         filepath = self.filepath
-        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  filter_glob='*.dae', use_active_collection = self.daeExportCollection, global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', object_types={'MESH','ARMATURE'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode, bake_anim=False)
+        bpy.ops.export_scene.fbx(filepath = filepath, use_selection = self.daeExportSelection,  
+                                 filter_glob='*.dae', use_active_collection = self.daeExportCollection, 
+                                 global_scale = self.daeExportScale, apply_scale_options='FBX_SCALE_NONE', 
+                                 object_types={'MESH','ARMATURE'}, use_mesh_modifiers=True, path_mode=self.daeExportPathMode, 
+                                 bake_anim=False, add_leaf_bones=False)
         dae_convert(filepath=filepath)
         return {'FINISHED'}
 
