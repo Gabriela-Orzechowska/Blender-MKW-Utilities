@@ -4466,7 +4466,10 @@ def register():
         bpy.app.handlers.depsgraph_update_post.append(update_scene_handler)
         bpy.types.TOPBAR_MT_file_export.append(export_autodesk_dae_button)
         bpy.types.TOPBAR_MT_file_export.append(export_minimap_button)
-        bpy.types.NODE_MT_shader_node_add_all.append(NewNodeMenu)
+        if BLENDER_40:
+            bpy.types.NODE_MT_shader_node_add_all.append(NewNodeMenu)
+        else:
+            register_node_categories("WII_NODES", mynodescat);
         if(wszstInstalled):
             bpy.types.TOPBAR_MT_file_export.append(export_kcl_button)
             bpy.types.TOPBAR_MT_file_import.append(import_kcl_button)
@@ -4499,7 +4502,10 @@ def unregister():
     bpy.app.handlers.load_post.remove(load_file_handler)
     bpy.types.TOPBAR_MT_file_export.remove(export_autodesk_dae_button)
     bpy.types.TOPBAR_MT_file_export.remove(export_minimap_button)
-    bpy.types.NODE_MT_shader_node_add_all.remove(NewNodeMenu)
+    if BLENDER_40:
+        bpy.types.NODE_MT_shader_node_add_all.remove(NewNodeMenu)
+    else:
+        unregister_node_categories("WII_NODES");
     try:
         bpy.types.TOPBAR_MT_file_export.remove(export_kcl_button)
         bpy.types.TOPBAR_MT_file_import.remove(import_kcl_button)
@@ -4507,7 +4513,6 @@ def unregister():
         pass
     del bpy.types.Scene.kmpt
     
-    # unregister_node_categories("WII_NODES")
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
