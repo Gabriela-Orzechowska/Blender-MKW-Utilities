@@ -371,8 +371,17 @@ def write_file(filepath, objects, depsgraph, scene,
                             continue  # dont bother with this mesh.
 
                         if EXPORT_NORMALS and face_index_pairs:
-                            me.calc_normals_split()
-                            # No need to call me.free_normals_split later, as this mesh is deleted anyway!
+                            # Blender 4.1 removed Mesh.calc_normals_split().  In
+                            # newer versions corner normals are evaluated lazily
+                            # when Mesh.corner_normals is accessed.  Keep the old
+                            # call for Blender 3.x so this patched add-on remains
+                            # backwards compatible.
+                            calc_normals_split = getattr(me, "calc_normals_split", None)
+                            if calc_normals_split is not None:
+                                calc_normals_split()
+                            corner_normals = me.corner_normals
+                        else:
+                            corner_normals = ()
 
                         loops = me.loops
 
@@ -478,7 +487,10 @@ def write_file(filepath, objects, depsgraph, scene,
                             loops_to_normals = [0] * len(loops)
                             for f, f_index in face_index_pairs:
                                 for l_idx in f.loop_indices:
-                                    no_key = veckey3d(loops[l_idx].normal)
+                                    # MeshLoop.normal is legacy API. Blender 5.x
+                                    # exposes the same data through the mesh's
+                                    # per-corner normal collection.
+                                    no_key = veckey3d(corner_normals[l_idx].vector)
                                     no_val = no_get(no_key)
                                     if no_val is None:
                                         no_val = normals_to_idx[no_key] = no_unique_count
